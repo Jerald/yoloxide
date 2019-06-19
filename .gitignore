@@ -1,0 +1,7 @@
+# rust defaults
+/target
+**/*.rs.bk
+
+# for vscode
+*.code-workspace
+/.vscode
