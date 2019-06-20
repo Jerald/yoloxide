@@ -64,7 +64,7 @@ fn extend_alpha_or_num_token(input: &Vec<char>, index: usize) -> (Token, usize)
 {
     let mut output: Vec<char> = Vec::new();
     let mut is_alpha_num_token = if let '0'..='9' = input[index] { false } else { true };
-    let mut is_zeros = if let '0' = input[index] { true } else { false };
+    let is_zeros = if let '0' = input[index] { true } else { false };
 
     let mut out_index = input.len();
     for i in index..input.len()
