@@ -2,8 +2,11 @@ use crate::types::Token;
 
 use crate::types::SlidingWindow;
 use crate::types::VecWindow;
+use crate::types::YololNumber;
 
-pub fn tokenize_basic<'a>(input: String) -> Vec<Token>
+use std::convert::TryInto;
+
+pub fn tokenize_basic(input: String) -> Result<Vec<Token>, String>
 {
     let mut output_vec: Vec<Token> = Vec::new();
     let input_chars: Vec<char> = input.chars().collect();
@@ -13,42 +16,54 @@ pub fn tokenize_basic<'a>(input: String) -> Vec<Token>
     while window.remaining_length() > 0
     {
         let value_tuple = (window.get_value(0), window.get_value(1), window.get_value(2));
-        let mut extended_token = false;
 
         println!("Matching slice: {:?}", (window.get_value(0), window.get_value(1), window.get_value(2)));
 
-        let token = match value_tuple
+        let (token, advance) = match value_tuple
         {
-            (Some('/'), Some('/'), _) => { extended_token = true; extend_basic_comment(&mut window) },
+            // Comment. Everything from '//' to the end of the line
+            (Some('/'), Some('/'), _)           => (extend_comment(&mut window), 0),
 
+            // Identifier. Starts with an alpha, then can be alphanum
             (Some('a'..='z'), _, _) |
-            (Some('A'..='Z'), _, _) => { extended_token = true; extend_basic_alphanum(&mut window) },
+            (Some('A'..='Z'), _, _)             => (extend_alphanum(&mut window), 0),
 
-            (Some('0'..='9'), _, _) => {
-                extended_token = true;
-                // If the last token was a colon, this is a data field access and we can tokenize it as an alphanum
-                if let Some(Token::Colon) = output_vec.last()
-                { extend_basic_alphanum(&mut window) }
-                else
-                { extend_basic_num(&mut window) }
-            },
+            // DataField. Starts with a colon then is all alphanums
+            (Some(':'), Some('0'..='9'), _) |
+            (Some(':'), Some('a'..='z'), _) |
+            (Some(':'), Some('A'..='Z'), _)     => (extend_alphanum(&mut window), 0),
 
-            (Some('"'), _, _)  => Some(Token::Quote),
-            (Some('='), _, _)  => Some(Token::Equal),
-            (Some('+'), _, _)  => Some(Token::Plus),
-            (Some('-'), _, _)  => Some(Token::Minus),
-            (Some('*'), _, _)  => Some(Token::Star),
-            (Some('('), _, _)  => Some(Token::LParen),
-            (Some(')'), _, _)  => Some(Token::RParen),
-            (Some('.'), _, _)  => Some(Token::Period),
-            (Some('<'), _, _)  => Some(Token::LAngleBrak),
-            (Some('>'), _, _)  => Some(Token::RAngleBrak),
-            (Some('!'), _, _)  => Some(Token::Exclam),
-            (Some('%'), _, _)  => Some(Token::Percent),
-            (Some(':'), _, _)  => Some(Token::Colon),
-            (Some('\n'), _, _) => Some(Token::Newline),
+            // String. Starts with a quote then extends all normal ascii chars until another quote
+            (Some('"'), Some(' '..='~'), _)     => (extend_string(&mut window), 0),
 
-            _                  => None
+            // YololNumber. Starts with a number extends through all other numbers
+            // Will match on periods so it can represent the YololNumber decimals
+            (Some('0'..='9'), _, _)             => (extend_yololnum(&mut window), 0),
+
+            // // Space. Just a space
+            // (Some(' '), _, _) => (Some(Token::Space), 1),
+            
+            // Newline. Matches on CRLF or LF
+            (Some('\r'), Some('\n'), _ ) => (Some(Token::Newline), 2),
+            (Some('\n'), _, _) => (Some(Token::Newline), 1),
+
+            // Special chars. Matches on each relevant special char
+            (Some('='), _, _)  => (Some(Token::Equal), 1),
+            (Some('+'), _, _)  => (Some(Token::Plus), 1),
+            (Some('-'), _, _)  => (Some(Token::Minus), 1),
+            (Some('*'), _, _)  => (Some(Token::Star), 1),
+            (Some('/'), _, _)  => (Some(Token::Slash), 1),
+            (Some('('), _, _)  => (Some(Token::LParen), 1),
+            (Some(')'), _, _)  => (Some(Token::RParen), 1),
+            (Some('<'), _, _)  => (Some(Token::LAngleBrak), 1),
+            (Some('>'), _, _)  => (Some(Token::RAngleBrak), 1),
+            (Some('!'), _, _)  => (Some(Token::Exclam), 1),
+            (Some('%'), _, _)  => (Some(Token::Percent), 1),
+
+            (Some(' '), _, _) => (None, 1),
+
+            // Matches on anything else. Returns an error and prints the window that failed matching
+            c => { println!("Error on: {:?}", c); return Err(String::from("Bad things happening!")); }
         };
 
         if let Some(tok) = token
@@ -56,17 +71,13 @@ pub fn tokenize_basic<'a>(input: String) -> Vec<Token>
             output_vec.push(tok);
         }
 
-        // If we didn't extend for this token, advance the view by one
-        if extended_token == false
-        {
-            window.move_view(1);
-        }
+        window.move_view(advance);
     }
 
-    output_vec
+    Ok(output_vec)
 }
 
-fn extend_basic_comment(window: &mut VecWindow<char>) -> Option<Token>
+fn extend_comment(window: &mut VecWindow<char>) -> Option<Token>
 {
     let mut char_vec: Vec<char> = Vec::new();
 
@@ -86,9 +97,19 @@ fn extend_basic_comment(window: &mut VecWindow<char>) -> Option<Token>
     Some(Token::Comment(output))
 }
 
-fn extend_basic_alphanum(window: &mut VecWindow<char>) -> Option<Token>
+fn extend_alphanum(window: &mut VecWindow<char>) -> Option<Token>
 {
     let mut char_vec: Vec<char> = Vec::new();
+
+    let extending_data_field = if let Some(':') = window.get_value(0)
+    {
+        window.move_view(1);
+        true
+    }
+    else
+    {
+        false
+    };
 
     while window.remaining_length() > 0
     {
@@ -105,25 +126,91 @@ fn extend_basic_alphanum(window: &mut VecWindow<char>) -> Option<Token>
     }
 
     let output: String = char_vec.into_iter().collect();
-    Some(Token::AlphaNumToken(output))
+
+    if extending_data_field
+    {
+        Some(Token::DataField(output))
+    }
+    else
+    {
+        Some(Token::Identifier(output))
+    }
 }
 
-fn extend_basic_num(window: &mut VecWindow<char>) -> Option<Token>
+fn extend_string(window: &mut VecWindow<char>) -> Option<Token>
 {
-    let mut digits: Vec<char> = Vec::new();
+    let mut char_vec: Vec<char> = Vec::new();
+
+    if let Some('"') = window.get_value(0)
+    {
+        window.move_view(1);
+    }
 
     while window.remaining_length() > 0
     {
         match window.get_value(0)
         {
-            Some(&num @ '0'..='9') => digits.push(num),
+            Some('"') => {
+                window.move_view(1);
+                break;
+            }
+
+            Some(&c @ ' '..='~') => char_vec.push(c),
+
             _ => break
         };
 
         window.move_view(1);
     }
 
-    let number = digits.into_iter().collect();
-    Some(Token::NumToken(number))
+    let output: String = char_vec.into_iter().collect();
+    Some(Token::StringToken(output))
 }
+
+fn extend_yololnum(window: &mut VecWindow<char>) -> Option<Token>
+{
+    let mut left_digits: Vec<char> = Vec::new();
+    let mut right_digits: Vec<char> = Vec::new();
+
+    let mut decimal_hit = false;
+
+    while window.remaining_length() > 0
+    {
+        match window.get_value(0)
+        {
+            Some('.') => decimal_hit = true,
+
+            Some(&num @ '0'..='9') if decimal_hit => right_digits.push(num),
+            Some(&num @ '0'..='9') => left_digits.push(num),
+
+            _ => break
+        };
+
+        window.move_view(1);
+    }
+
+    let left_string: String = left_digits.into_iter().collect();
+    let right_string: String = right_digits.into_iter().collect();
+
+    let left_num: u64 = left_string.parse::<u64>().unwrap();
+
+    let right_num: u64 = if right_string.len() == 0
+    {
+        0
+    }
+    else if right_string.len() > 4
+    {
+        right_string[0..4].parse::<u64>().unwrap()
+    }
+    else
+    {
+        let shift: u64 = (10u64).pow(right_string.len().try_into().unwrap());
+        right_string[0..right_string.len()].parse::<u64>().unwrap() * shift
+    };
+
+    let yolol_num = YololNumber::from_split(left_num, right_num);
+    Some(Token::YololNum(yolol_num))
+}
+
+
 

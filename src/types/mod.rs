@@ -1,3 +1,5 @@
+use std::fmt;
+use std::error;
 use std::convert::TryInto;
 
 mod yolol_number;
@@ -6,11 +8,15 @@ pub use yolol_number::*;
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token
 {
-    // Basic tokens
     Comment(String),
-    AlphaNumToken(String),
-    NumToken(String),
-    Quote,
+    Identifier(String),
+    DataField(String),
+    StringToken(String),
+    YololNum(YololNumber),
+
+    Space,
+    Newline,
+
     Equal,
     Plus,
     Minus,
@@ -18,28 +24,49 @@ pub enum Token
     Slash,
     LParen,
     RParen,
-    Period,
     LAngleBrak,
     RAngleBrak,
     Exclam,
     Caret,
     Percent,
-    Colon,
-    Newline,
+}
 
-    // Extended tokens
-    YololNum(YololNumber),
-    PlusPlus,
-    MinusMinus,
-    PlusEqual,
-    MinusEqual,
-    StarEqual,
-    SlashEqual,
-    PercentEqual,
-    LAngleBrakEqual,
-    RAngleBrakEqual,
-    ExclamEqual,
-    EqualEqual,
+#[derive(Debug, PartialEq, Clone)]
+pub enum Statement
+{
+    If(Box<Expression>, Vec<Statement>, Option<Vec<Statement>>),
+    Goto(Box<Expression>),
+    Assignment(Token, Operator, Box<Expression>),
+    Expression(Box<Expression>)
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Expression
+{
+    Grouping(Box<Expression>),
+    BinaryOp(Operator, Box<Expression>, Box<Expression>),
+    UnaryOp(Operator, Box<Expression>),
+    Value(Token)
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum Operator
+{
+    Assign,
+    AddAssign,
+    SubAssign,
+    MulAssign,
+    DivAssign,
+    ModAssign,
+    PowAssign,
+
+    Negate,
+    PreInc,
+    PostInc,
+    PreDec,
+    PostDec,
+    Fact,
+
     Abs,
     Sqrt,
     Sin,
@@ -48,10 +75,129 @@ pub enum Token
     Arcsin,
     Arccos,
     Arctan,
-    Goto,
-    If,
-    End,
-    Then
+    Not,
+
+    Lesser,
+    Greater,
+    LesserEq,
+    GreaterEq,
+    Equal,
+    NotEqual,
+    And,
+    Or,
+
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+    Pow
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum ParseErrorKind
+{
+    NoParseRuleMatch,
+
+    RepeatedElseTokens,
+
+    UnbalancedParenthesis,
+    NoExtensionAvailable
+}
+
+#[derive(Debug, Clone)]
+pub struct ExprError
+{
+    pub input_expr: Option<Box<Expression>>,
+    pub kind: ParseErrorKind,
+    pub error_text: String,
+}
+
+impl ExprError
+{
+    pub fn new(expr: Option<Box<Expression>>, kind: ParseErrorKind, error_text: &str) -> ExprError
+    {
+        ExprError {
+            input_expr: expr,
+            kind: kind,
+            error_text: String::from(error_text)
+        }
+    }
+}
+
+impl fmt::Display for ExprError
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+    {
+        write!(f, "{}", self.error_text)
+    }
+}
+
+impl error::Error for ExprError
+{
+    fn source(&self) -> Option<&(dyn error::Error + 'static)>
+    {
+        None
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct StatError
+{
+    pub input_stat: Option<Box<Statement>>,
+    pub kind: ParseErrorKind,
+    pub error_text: String,
+}
+
+impl StatError
+{
+    pub fn new(stat: Option<Box<Statement>>, kind: ParseErrorKind, error_text: &str) -> StatError
+    {
+        StatError {
+            input_stat: stat,
+            kind: kind,
+            error_text: String::from(error_text)
+        }
+    }
+}
+
+impl fmt::Display for StatError
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+    {
+        write!(f, "{}", self.error_text)
+    }
+}
+
+impl error::Error for StatError
+{
+    fn source(&self) -> Option<&(dyn error::Error + 'static)>
+    {
+        None
+    }
+}
+
+impl std::convert::From<ExprError> for StatError
+{
+    fn from(error: ExprError) -> Self
+    {
+        let ExprError {
+            input_expr,
+            kind,
+            error_text } = error;
+
+        let stat = match input_expr
+        {
+            Some(expr) => Some(Box::new(Statement::Expression(expr))),
+            None => None
+        };
+
+        StatError {
+            input_stat: stat,
+            kind,
+            error_text
+        }
+    }
 }
 
 pub trait SlidingWindow<'a>
