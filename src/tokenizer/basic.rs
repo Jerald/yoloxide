@@ -58,6 +58,7 @@ pub fn tokenize_basic(input: String) -> Result<Vec<Token>, String>
             (Some('<'), _, _)  => (Some(Token::LAngleBrak), 1),
             (Some('>'), _, _)  => (Some(Token::RAngleBrak), 1),
             (Some('!'), _, _)  => (Some(Token::Exclam), 1),
+            (Some('^'), _, _)  => (Some(Token::Caret), 1),
             (Some('%'), _, _)  => (Some(Token::Percent), 1),
 
             (Some(' '), _, _) => (None, 1),

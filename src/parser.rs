@@ -200,10 +200,24 @@ fn parse_expression(window: &mut VecWindow<Token>) -> Result<Box<Expr>, ExprErro
     let expression = match value_tuple
     {
         (Some(Token::LParen), _, _) => {
-            let output: Box<Expr> = parse_expression(window)?;
+            window.move_view(1);
+            println!("Saw LParen, recursing for group parsing...");
+            let output = parse_expression(window)?;
+
+            // println!("After group inner expression parse attempt. Vec head: {:?}", window.get_value(0));
+
+            // match output
+            // {
+            //     Ok(expr) => {},
+            //     Err(ExprError { input_expr: expr, ParseErrorKind::NoParseRuleMatch, ... }) => {},
+            // }
+
             match window.get_value(0)
             {
-                Some(Token::RParen) => *output,
+                Some(Token::RParen) => {
+                    window.move_view(1);
+                    Expr::Grouping(output)
+                },
                 _ => return Err(ExprError::new(Some(output), ParseErrorKind::UnbalancedParenthesis, "Saw LParen, parsed expr, found no RParen!"))
             }
         },
@@ -267,18 +281,17 @@ fn parse_expression(window: &mut VecWindow<Token>) -> Result<Box<Expr>, ExprErro
             Expr::Value(new_tok)
         },
 
-        tok => return Err(ExprError::new(None, ParseErrorKind::NoExtensionAvailable, format!("{:?}", tok).as_str()))
+        tok => { println!("[Parse Expr] No match, returning..."); return Err(ExprError::new(None, ParseErrorKind::NoParseRuleMatch, format!("Parsing {:?} and didn't match", tok).as_str())) }
     };
 
     let expression = match extend_expression(Box::new(expression), window)
     {
         Ok(expr) |
-        Err(ExprError { input_expr: Some(expr), kind: ParseErrorKind::NoExtensionAvailable, .. }) => { println!("Pulling out of expr extending"); expr },
+        Err(ExprError { input_expr: Some(expr), kind: ParseErrorKind::NoExtensionAvailable, .. }) => expr,
         _ => panic!("Unknown extend expression error!")
     };
 
-    println!("Returning parsed expr {:?}", expression.as_ref());
-    println!("Vec head: {:?}", window.get_value(0));
+    println!("[Parse Expr] Returning parsed expr {:?}", expression.as_ref());
     Ok(expression)
 }
 
@@ -370,18 +383,17 @@ fn extend_expression(expr: Box<Expr>, window: &mut VecWindow<Token>) -> Result<B
             Expr::BinaryOp(Op::Pow, expr, parse_expression(window)?)
         },
 
-        tok => return Err(ExprError::new(Some(expr), ParseErrorKind::NoExtensionAvailable, format!("{:?}", tok).as_str()))
+        tok => { println!("[Extend Expr] No match, returning..."); return Err(ExprError::new(Some(expr), ParseErrorKind::NoExtensionAvailable, format!("Extending and didn't match on {:?}", tok).as_str())) }
     };
 
     let expression = match extend_expression(Box::new(expression), window)
     {
         Ok(expr) => expr,
-        Err(ExprError { input_expr: Some(expr), kind: ParseErrorKind::NoExtensionAvailable, error_text: error }) => {
-            println!("[Extend Expr] would've failed due to: '{:?}'", error);
-            expr
-        },
+        Err(ExprError { input_expr: Some(expr), kind: ParseErrorKind::NoExtensionAvailable, error_text: error }) => expr,
         _ => panic!("Unknown extend expression error!")
     };
+
+    println!("[Extend Expr] Returning: {:?}", expression.as_ref());
 
     Ok(expression)
 }

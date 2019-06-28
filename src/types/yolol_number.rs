@@ -115,9 +115,7 @@ impl ops::Add for YololNumber
     type Output =  Self;
     fn add(self, other: Self) -> Self
     {
-        let lhs = YololNumber::from_inner(self.0);
-        let rhs = YololNumber::from_inner(other.0);
-        YololNumber::from(lhs + rhs)
+        YololNumber::new(self.0 + other.0)
     }
 }
 
@@ -126,9 +124,7 @@ impl ops::Sub for YololNumber
     type Output = Self;
     fn sub(self, other: Self) -> Self
     {
-        let lhs = YololNumber::from_inner(self.0);
-        let rhs = YololNumber::from_inner(other.0);
-        YololNumber::from(lhs - rhs)
+        YololNumber::new(self.0 - other.0)
     }
 }
 
@@ -137,9 +133,7 @@ impl ops::Mul for YololNumber
     type Output = Self;
     fn mul(self, other: Self) -> Self
     {
-        let lhs = YololNumber::from_inner(self.0);
-        let rhs = YololNumber::from_inner(other.0);
-        YololNumber::from(lhs * rhs)
+        YololNumber::new(self.0 * other.0)
     }
 }
 
@@ -148,10 +142,7 @@ impl ops::Div for YololNumber
     type Output = Self;
     fn div(self, other: Self) -> Self
     {
-        let lhs = YololNumber::from_inner(self.0);
-        let rhs = YololNumber::from_inner(other.0);
-        println!("Lhs: '{}', rhs: '{}'", lhs, rhs);
-        YololNumber::from(lhs / rhs)
+        YololNumber::new(self.0 / other.0)
     }
 }
 
