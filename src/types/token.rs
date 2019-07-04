@@ -3,6 +3,8 @@ use std::error;
 use std::convert::TryInto;
 
 use super::YololNumber;
+use super::Operator;
+use super::Value;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Token
@@ -13,7 +15,6 @@ pub enum Token
     StringToken(String),
     YololNum(YololNumber),
 
-    Space,
     Newline,
 
     Equal,
@@ -30,32 +31,6 @@ pub enum Token
     Percent,
 }
 
-impl std::ops::Add for Token
-{
-    type Output = Self;
-    fn add(self, other: Self) -> Self
-    {
-        match (self, other)
-        {
-            (Token::StringToken(self_string), Token::StringToken(other_string)) => {
-                Token::StringToken(self_string + &other_string)
-            },
-            (Token::StringToken(self_string), Token::YololNum(other_num)) => {
-                Token::StringToken(self_string + &other_num.to_string())
-            },
-
-            (Token::YololNum(self_num), Token::StringToken(other_string)) => {
-                Token::StringToken(self_num.to_string() + &other_string)
-            },
-            (Token::YololNum(self_num), Token::YololNum(other_num)) => {
-                Token::YololNum(self_num + other_num)
-            },
-
-            _ => panic!("Fix code!")
-        }
-    }
-}
-
 impl fmt::Display for Token
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
@@ -68,7 +43,6 @@ impl fmt::Display for Token
             Token::StringToken(string) => format!("\"{}\"", string),
             Token::YololNum(num) => format!("{}", num),
 
-            Token::Space => " ".to_owned(),
             Token::Newline => "\n".to_owned(),
 
             Token::Equal => "=".to_owned(),
@@ -88,3 +62,11 @@ impl fmt::Display for Token
         write!(f, "{}", write_value)
     }
 }
+
+
+
+
+
+
+
+

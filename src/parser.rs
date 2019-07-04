@@ -1,8 +1,10 @@
 use crate::types::Token;
-use crate::types::Token as Val;
 use crate::types::Statement as Stat;
 use crate::types::Expression as Expr;
 use crate::types::Operator as Op;
+
+use crate::types::Value;
+use crate::types::LiteralValue;
 
 use crate::types::ParseErrorKind;
 use crate::types::ExprError;
@@ -26,6 +28,7 @@ pub fn parse(input: Vec<Token>) -> Result<Vec<Stat>, StatError>
         let (parsed, advance) = match value_tuple
         {
             (Some(Token::Newline), _, _) => (None, 1),
+            (Some(Token::Comment(_)), _, _) => (None, 1),
             // _ => (Some(parse_statement(&mut window)?.as_ref().clone()), 0),
             _ => {
                 let statement = match parse_statement(&mut window)
@@ -58,6 +61,11 @@ fn parse_statement(window: &mut VecWindow<Token>) -> Result<Box<Stat>, StatError
     println!("[Parse Stat] Matching slice: {:?}", value_tuple);
     let statement = match value_tuple
     {
+        (Some(Token::Comment(comment)), _, _) => {
+            let comment_string = comment.clone();
+            window.move_view(1);
+            Stat::Comment(comment_string)
+        } 
         (Some(Token::Identifier(tok)), _, _) if tok.to_ascii_lowercase() == "goto" => {
             window.move_view(3);
             Stat::Goto(parse_expression(window)?)
@@ -70,51 +78,44 @@ fn parse_statement(window: &mut VecWindow<Token>) -> Result<Box<Stat>, StatError
 
         (Some(ident @ Token::Identifier(_)), Some(Token::Plus), Some(Token::Equal)) |
         (Some(ident @ Token::DataField(_)), Some(Token::Plus), Some(Token::Equal)) => {
-            let cloned_ident = ident.clone();
+            let value = Value::from(ident.clone());
             window.move_view(3);
-            Stat::Assignment(cloned_ident, Op::AddAssign, parse_expression(window)?)
+            Stat::Assignment(value, Op::AddAssign, parse_expression(window)?)
         },
 
         (Some(ident @ Token::Identifier(_)), Some(Token::Minus), Some(Token::Equal)) |
         (Some(ident @ Token::DataField(_)), Some(Token::Minus), Some(Token::Equal)) => {
-            let cloned_ident = ident.clone();
+            let value = Value::from(ident.clone());
             window.move_view(3);
-            Stat::Assignment(cloned_ident, Op::SubAssign, parse_expression(window)?)
+            Stat::Assignment(value, Op::SubAssign, parse_expression(window)?)
         },
 
         (Some(ident @ Token::Identifier(_)), Some(Token::Star), Some(Token::Equal)) |
         (Some(ident @ Token::DataField(_)), Some(Token::Star), Some(Token::Equal)) => {
-            let cloned_ident = ident.clone();
+            let value = Value::from(ident.clone());
             window.move_view(3);
-            Stat::Assignment(cloned_ident, Op::MulAssign, parse_expression(window)?)
+            Stat::Assignment(value, Op::MulAssign, parse_expression(window)?)
         },
 
         (Some(ident @ Token::Identifier(_)), Some(Token::Slash), Some(Token::Equal)) |
         (Some(ident @ Token::DataField(_)), Some(Token::Slash), Some(Token::Equal)) => {
-            let cloned_ident = ident.clone();
+            let value = Value::from(ident.clone());
             window.move_view(3);
-            Stat::Assignment(cloned_ident, Op::DivAssign, parse_expression(window)?)
+            Stat::Assignment(value, Op::DivAssign, parse_expression(window)?)
         },
 
         (Some(ident @ Token::Identifier(_)), Some(Token::Percent), Some(Token::Equal)) |
         (Some(ident @ Token::DataField(_)), Some(Token::Percent), Some(Token::Equal)) => {
-            let cloned_ident = ident.clone();
+            let value = Value::from(ident.clone());
             window.move_view(3);
-            Stat::Assignment(cloned_ident, Op::ModAssign, parse_expression(window)?)
-        },
-
-        (Some(ident @ Token::Identifier(_)), Some(Token::Caret), Some(Token::Equal)) |
-        (Some(ident @ Token::DataField(_)), Some(Token::Caret), Some(Token::Equal)) => {
-            let cloned_ident = ident.clone();
-            window.move_view(3);
-            Stat::Assignment(cloned_ident, Op::PowAssign, parse_expression(window)?)
+            Stat::Assignment(value, Op::ModAssign, parse_expression(window)?)
         },
 
         (Some(ident @ Token::Identifier(_)), Some(Token::Equal), Some(tok)) |
         (Some(ident @ Token::DataField(_)), Some(Token::Equal), Some(tok)) if *tok != Token::Equal => {
-            let cloned_ident = ident.clone();
+            let value = Value::from(ident.clone());
             window.move_view(2);
-            Stat::Assignment(cloned_ident, Op::Assign, parse_expression(window)?)
+            Stat::Assignment(value, Op::Assign, parse_expression(window)?)
         },
 
         _ => Stat::Expression(parse_expression(window)?)
@@ -216,7 +217,7 @@ fn parse_expression(window: &mut VecWindow<Token>) -> Result<Box<Expr>, ExprErro
             {
                 Some(Token::RParen) => {
                     window.move_view(1);
-                    Expr::Grouping(output)
+                    Expr::Value(Value::Group(output))
                 },
                 _ => return Err(ExprError::new(Some(output), ParseErrorKind::UnbalancedParenthesis, "Saw LParen, parsed expr, found no RParen!"))
             }
@@ -276,9 +277,9 @@ fn parse_expression(window: &mut VecWindow<Token>) -> Result<Box<Expr>, ExprErro
         (Some(tok @ Token::YololNum(_)), _, _) |
         (Some(tok @ Token::Identifier(_)), _, _) |
         (Some(tok @ Token::DataField(_)), _, _) => {
-            let new_tok = tok.clone();
+            let value = Value::from(tok.clone());
             window.move_view(1);
-            Expr::Value(new_tok)
+            Expr::Value(value)
         },
 
         tok => { println!("[Parse Expr] No match, returning..."); return Err(ExprError::new(None, ParseErrorKind::NoParseRuleMatch, format!("Parsing {:?} and didn't match", tok).as_str())) }

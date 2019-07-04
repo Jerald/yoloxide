@@ -39,9 +39,6 @@ pub fn tokenize_basic(input: String) -> Result<Vec<Token>, String>
             // YololNumber. Starts with a number extends through all other numbers
             // Will match on periods so it can represent the YololNumber decimals
             (Some('0'..='9'), _, _)             => (extend_yololnum(&mut window), 0),
-
-            // // Space. Just a space
-            // (Some(' '), _, _) => (Some(Token::Space), 1),
             
             // Newline. Matches on CRLF or LF
             (Some('\r'), Some('\n'), _ ) => (Some(Token::Newline), 2),
@@ -105,6 +102,7 @@ fn extend_alphanum(window: &mut VecWindow<char>) -> Option<Token>
     let extending_data_field = if let Some(':') = window.get_value(0)
     {
         window.move_view(1);
+        char_vec.push(':');
         true
     }
     else
@@ -193,21 +191,26 @@ fn extend_yololnum(window: &mut VecWindow<char>) -> Option<Token>
     let left_string: String = left_digits.into_iter().collect();
     let right_string: String = right_digits.into_iter().collect();
 
-    let left_num: u64 = left_string.parse::<u64>().unwrap();
+    let left_num: i64 = left_string.parse::<i64>().unwrap();
 
-    let right_num: u64 = if right_string.len() == 0
+    println!("right string len: {}", right_string.len());
+
+    let right_num: i64 = if right_string.len() == 0
     {
         0
     }
-    else if right_string.len() > 4
+    else if right_string.len() >= 4
     {
-        right_string[0..4].parse::<u64>().unwrap()
+        right_string[0..4].parse::<i64>().unwrap()
     }
     else
     {
-        let shift: u64 = (10u64).pow(right_string.len().try_into().unwrap());
-        right_string[0..right_string.len()].parse::<u64>().unwrap() * shift
+        let right_string_len: u32 = right_string.len().try_into().unwrap();
+        let shift: i64 = (10i64).pow(4 - right_string_len);
+        right_string[0..right_string.len()].parse::<i64>().unwrap() * shift
     };
+
+    println!("Left num: {}, right num: {}, left string: {}, right string: {}", left_num, right_num, left_string, right_string);
 
     let yolol_num = YololNumber::from_split(left_num, right_num);
     Some(Token::YololNum(yolol_num))
