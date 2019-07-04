@@ -1,5 +1,7 @@
-use std::collections::HashMap;
 use std::ops;
+use std::fmt;
+
+use std::collections::HashMap;
 
 // use crate::types::Token;
 // use crate::types::YololNumber;
@@ -17,6 +19,7 @@ use crate::types::StatError;
 use crate::types::SlidingWindow;
 use crate::types::VecWindow;
 
+use crate::types::LiteralValue;
 use crate::types::YololNumber;
 
 
@@ -24,39 +27,67 @@ use crate::types::YololNumber;
 pub struct Environment
 {
     pub name: String,
-    pub context: HashMap<String, Token>,
+    pub next_line: i64,
+    pub context: HashMap<String, LiteralValue>,
 }
 
 impl Environment
 {
-    pub fn new(name: String) -> Environment
+    pub fn new(name: &str) -> Environment
     {
+        let name = name.to_string();
+
+        // We start at the first line on a chip
+        let next_line = 1;
+
         let mut context = HashMap::new();
-        context.insert(String::from("0"), Token::YololNum(YololNumber::from(0)));
+        context.insert(String::from("0"), LiteralValue::NumberVal(YololNumber::from(0)));
 
         Environment {
             name,
+            next_line,
             context,
         }
+    }
+
+    pub fn set_next_line(&mut self, num: YololNumber)
+    {
+        self.next_line = i64::from(num);
+    }
+}
+
+impl fmt::Display for Environment
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+    {
+        let mut out_string = format!("Name: {}, next line: {}.\n", self.name, self.next_line);
+
+        out_string += "Context:\n";
+        for (key, value) in self.context.iter()
+        {
+            out_string += format!("Key: '{}', Value: '{}'\n", key, value).as_str();
+        }
+
+        write!(f, "{}", out_string)
     }
 }
 
 pub trait ContextMap
 {
-    fn get_val(&self, ident: &str) -> Token;
-    fn get_zero(&self) -> Token;
+    fn get_val(&self, ident: &str) -> LiteralValue;
+    fn get_zero(&self) -> LiteralValue;
 }
 
-impl ContextMap for HashMap<String, Token>
+impl ContextMap for HashMap<String, LiteralValue>
 {
-    fn get_val(&self, ident: &str) -> Token
+    fn get_val(&self, ident: &str) -> LiteralValue
     {
         self.get(ident)
             .unwrap_or(self.get("0").unwrap())
             .clone()
     }
 
-    fn get_zero(&self) -> Token
+    fn get_zero(&self) -> LiteralValue
     {
         self.get("0")
             .unwrap()

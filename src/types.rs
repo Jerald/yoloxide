@@ -11,171 +11,57 @@ pub use yolol_number::*;
 mod token;
 pub use token::*;
 
-// TODO: make a value enum for strings and yololnums
+mod operators;
+pub use operators::*;
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum Statement
+mod value;
+pub use value::*;
+
+mod expression;
+pub use expression::*;
+
+mod statement;
+pub use statement::*;
+
+#[derive(Debug, Clone)]
+pub struct EvaluationError
 {
-    If(Box<Expression>, Vec<Statement>, Option<Vec<Statement>>),
-    Goto(Box<Expression>),
-    Assignment(Token, Operator, Box<Expression>),
-    Expression(Box<Expression>)
+    pub kind: EvaluationErrorKind,
+    pub error_text: String
 }
 
-impl fmt::Display for Statement
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum EvaluationErrorKind
 {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+    OperatorError,
+    NonExhaustivePattern,
+    Misc
+}
+
+impl error::Error for EvaluationError
+{
+    fn source(&self) -> Option<&(dyn error::Error + 'static)>
     {
-        let write_value: String = match self
-        {
-            Statement::If(cond, body, Some(else_body)) => format!("if {} then {:?} else {:?} end", cond, body, else_body),
-            Statement::If(cond, body, None) => format!("if {} then {:?} end", cond, body),
-
-            Statement::Goto(expr) => format!("goto {}", expr.as_ref()),
-            Statement::Assignment(ident, op, value) => format!("{} {} {}", ident, op, value),
-
-            Statement::Expression(expr) => format!("{}", expr.as_ref()),
-        };
-
-        write!(f, "{}", write_value)
+        None
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum Expression
-{
-    Grouping(Box<Expression>),
-    BinaryOp(Operator, Box<Expression>, Box<Expression>),
-    UnaryOp(Operator, Box<Expression>),
-    Value(Token)
-}
-
-impl fmt::Display for Expression
+impl fmt::Display for EvaluationError
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
-        let write_value: String = match self
-        {
-            Expression::Grouping(expr) => format!("({})", expr.as_ref()),
-            Expression::BinaryOp(op, left, right) => format!("{} {} {}", left.as_ref(), op, right.as_ref()),
-
-            Expression::UnaryOp(op @ Operator::Negate, value) |
-            Expression::UnaryOp(op @ Operator::PreInc, value) |
-            Expression::UnaryOp(op @ Operator::PreDec, value)  => format!("{}{}", op, value.as_ref()),
-
-            Expression::UnaryOp(op @ Operator::Abs, value) |
-            Expression::UnaryOp(op @ Operator::Sqrt, value) |
-            Expression::UnaryOp(op @ Operator::Sin, value) |
-            Expression::UnaryOp(op @ Operator::Cos, value) |
-            Expression::UnaryOp(op @ Operator::Tan, value) |
-            Expression::UnaryOp(op @ Operator::Arcsin, value) |
-            Expression::UnaryOp(op @ Operator::Arccos, value) |
-            Expression::UnaryOp(op @ Operator::Arctan, value) |
-            Expression::UnaryOp(op @ Operator::Not, value) => format!("{} {}", op, value.as_ref()),
-
-            Expression::UnaryOp(op, value) => format!("{}{}", value.as_ref(), op),
-
-            Expression::Value(token) => format!("{}", token),
-        };
-
-        write!(f, "{}", write_value)
+        write!(f, "[Evaluation Error] Kind: {:?} Error: {}", self.kind, self.error_text)
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum Operator
+impl From<OperatorError> for EvaluationError
 {
-    Assign,
-    AddAssign,
-    SubAssign,
-    MulAssign,
-    DivAssign,
-    ModAssign,
-    PowAssign,
-
-    Negate,
-    PreInc,
-    PostInc,
-    PreDec,
-    PostDec,
-    Fact,
-
-    Abs,
-    Sqrt,
-    Sin,
-    Cos,
-    Tan,
-    Arcsin,
-    Arccos,
-    Arctan,
-    Not,
-
-    Lesser,
-    Greater,
-    LesserEq,
-    GreaterEq,
-    Equal,
-    NotEqual,
-    And,
-    Or,
-
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Mod,
-    Pow
-}
-
-impl fmt::Display for Operator
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+    fn from(input: OperatorError) -> EvaluationError
     {
-        let write_value: &str = match self
-        {
-            Operator::Assign => "=",
-            Operator::AddAssign => "+=",
-            Operator::SubAssign => "-=",
-            Operator::MulAssign => "*=",
-            Operator::DivAssign => "/=",
-            Operator::ModAssign => "%=",
-            Operator::PowAssign => "^=",
-
-            Operator::Negate => "-",
-            Operator::PreInc => "++",
-            Operator::PostInc => "++",
-            Operator::PreDec => "--",
-            Operator::PostDec => "--",
-            Operator::Fact => "!",
-
-            Operator::Abs  => "abs",
-            Operator::Sqrt => "sqrt",
-            Operator::Sin => "sin",
-            Operator::Cos => "cos",
-            Operator::Tan => "tan",
-            Operator::Arcsin => "arcsin",
-            Operator::Arccos => "arccos",
-            Operator::Arctan => "arctan",
-            Operator::Not => "not",
-
-            Operator::Lesser => "<",
-            Operator::Greater => ">",
-            Operator::LesserEq => "<=",
-            Operator::GreaterEq => ">=",
-            Operator::Equal => "==",
-            Operator::NotEqual => "!=",
-            Operator::And => "and",
-            Operator::Or => "or",
-
-            Operator::Add => "+",
-            Operator::Sub => "-",
-            Operator::Mul => "*",
-            Operator::Div => "/",
-            Operator::Mod => "%",
-            Operator::Pow => "^"
-        };
-
-        write!(f, "{}", write_value)
+        EvaluationError {
+            kind: EvaluationErrorKind::OperatorError,
+            error_text: format!("op: {:?}, left: {:?}, right: {:?}, message: {}", input.op, input.left, input.right, input.error_text)
+        }
     }
 }
 

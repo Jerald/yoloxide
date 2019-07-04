@@ -1,13 +1,15 @@
 use std::env;
 use std::fs;
 
+use yoloxide::types::EvaluationError;
+
+use yoloxide::environment::{ Environment, ContextMap };
+
 use yoloxide::tokenizer;
 use yoloxide::parser;
+use yoloxide::interpreter;
 
-use yoloxide::types::Token;
-use yoloxide::types::Statement as Stat;
-use yoloxide::types::Expression as Expr;
-use yoloxide::types::Operator as Op;
+
 
 fn main()
 {
@@ -18,24 +20,29 @@ fn main()
 
     println!("Original code:");
     println!("{}", yolol_code);
-    // println!("Basic tokens:");
-    let tokens = tokenizer::basic::tokenize_basic(yolol_code).unwrap();
-    // println!("{:?}", tokens);
-    let statements = parser::parse(tokens).unwrap();
-    // let tokens = tokenizer::extended::tokenize_extended(tokens);
-    // println!("Parsed statements:");
-    // println!("{:#?}", statements);
-    println!("Re-codified AST:");
 
+    let tokens = tokenizer::basic::tokenize_basic(yolol_code).unwrap();
+    println!("Tokens:");
+    println!("{:?}", tokens);
+
+
+    let statements = parser::parse(tokens).unwrap();
+    println!("AST:");
+    println!("{:?}", statements);
+
+    let mut test_env = Environment::new("Test Env");
+
+    println!("Re-codified AST:");
     for statement in statements
     {
         println!("{}", statement);
+        let eval_output = interpreter::evaluate_statement(&mut test_env, statement.clone());
+
+        eval_output.unwrap_or_else(|error| {
+            println!("{}", statement);
+            println!("{}", error);
+        });
     }
 
-    // let test: Stat = Stat::Assignment(Token::Caret, Op::Assign, Box::new(Expr::Value(Token::Caret)));
-
-    // println!("Testing thing...");
-    // println!("{}", test);
-
-    // println!("Adding 5: {}", yolol_num + YololNumber::from(5));
+    println!("{}", test_env);
 }

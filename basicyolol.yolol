@@ -1,2 +1,2 @@
-if foo == 1 then x = 2 end
-bar="hello"
+foo = 1
+if foo == 1 then x = "foo is 1" else x = "foo is not 1" end

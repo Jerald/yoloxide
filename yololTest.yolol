@@ -1,5 +1,5 @@
 // This is my test code
-if foo==1.14 1.0150 56.126012 then bar==3.1415 end // This code tests a lot!
-:7x8a=1 :xj91a=2.019 :7x8a++ bar-- foo*=1
+if foo==1.14 then bar=3.1415 end // This code tests a lot!
+:7x8a=1 :xj91a=2.019 :7x8a++ bar-- :7x8a *= 2
 :asd = abs -5 :y251a = arcsin 5 :ha01 = ""
 test = "hello world times!"
