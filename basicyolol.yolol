@@ -1,2 +1,2 @@
-foo = 1
-if foo == 1 then x = "foo is 1" else x = "foo is not 1" end
+(a + b) * c
+a * (b + c)

@@ -2,8 +2,6 @@ use std::fmt;
 use std::ops;
 use std::cmp;
 
-use super::Value;
-
 use crate::types::YololNumber;
 
 use crate::types::Operator;
@@ -42,17 +40,17 @@ impl LiteralValue
             LiteralValue::StringVal(string) => string
         };
 
-        let match_iter = self_string.match_indices(other_string.as_str());
+        let mut match_iter = self_string.rmatch_indices(other_string.as_str());
         let match_len = other_string.len();
 
-        let (match_index, match_value) = match match_iter.last()
+        let match_index = match match_iter.next()
         {
-            Some(item) => item,
+            Some((index, _)) => index,
             _ => return LiteralValue::StringVal(self_string)
         };
 
         let input_front = &self_string[0..match_index];
-        let input_back = &self_string[match_len..self_string.len()];
+        let input_back = &self_string[(match_index + match_len)..self_string.len()];
 
         let output_string = String::from(input_front);
         LiteralValue::StringVal(output_string + input_back)

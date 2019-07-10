@@ -1,47 +1,25 @@
-use std::ops;
 use std::fmt;
-
 use std::collections::HashMap;
-
-// use crate::types::Token;
-// use crate::types::YololNumber;
-
-use crate::types::Token;
-use crate::types::Token as Val;
-use crate::types::Statement as Stat;
-use crate::types::Expression as Expr;
-use crate::types::Operator as Op;
-
-use crate::types::ParseErrorKind;
-use crate::types::ExprError;
-use crate::types::StatError;
-
-use crate::types::SlidingWindow;
-use crate::types::VecWindow;
 
 use crate::types::LiteralValue;
 use crate::types::YololNumber;
 
-
 #[derive(Debug, Clone)]
-pub struct Environment
+pub struct Environment<'a>
 {
-    pub name: String,
+    pub name: &'a str,
     pub next_line: i64,
     pub context: HashMap<String, LiteralValue>,
 }
 
-impl Environment
+impl<'a> Environment<'a>
 {
-    pub fn new(name: &str) -> Environment
+    pub fn new(name: &'a str) -> Environment
     {
-        let name = name.to_string();
-
         // We start at the first line on a chip
         let next_line = 1;
 
-        let mut context = HashMap::new();
-        context.insert(String::from("0"), LiteralValue::NumberVal(YololNumber::from(0)));
+        let context = HashMap::new();
 
         Environment {
             name,
@@ -56,7 +34,7 @@ impl Environment
     }
 }
 
-impl fmt::Display for Environment
+impl fmt::Display for Environment<'_>
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
@@ -75,7 +53,7 @@ impl fmt::Display for Environment
 pub trait ContextMap
 {
     fn get_val(&self, ident: &str) -> LiteralValue;
-    fn get_zero(&self) -> LiteralValue;
+    // fn get_zero(&self) -> LiteralValue;
 }
 
 impl ContextMap for HashMap<String, LiteralValue>
@@ -83,14 +61,12 @@ impl ContextMap for HashMap<String, LiteralValue>
     fn get_val(&self, ident: &str) -> LiteralValue
     {
         self.get(ident)
-            .unwrap_or(self.get("0").unwrap())
+            .unwrap_or(&LiteralValue::get_false())
             .clone()
     }
 
-    fn get_zero(&self) -> LiteralValue
-    {
-        self.get("0")
-            .unwrap()
-            .clone()
-    }
+    // fn get_zero(&self) -> LiteralValue
+    // {
+    //     LiteralValue::get_false()
+    // }
 }

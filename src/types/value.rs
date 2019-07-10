@@ -38,8 +38,16 @@ impl From<Token> for Value
     {
         match input
         {
-            Token::Identifier(ident) => Value::LocalVar(ident),
-            Token::DataField(ident) => Value::DataField(ident),
+            Token::Identifier(ident) => {
+                if let Some(':') = ident.chars().next()
+                {
+                    Value::DataField(ident)
+                }
+                else
+                {
+                    Value::LocalVar(ident)
+                }
+            },
             Token::StringToken(string) => Value::StringVal(string),
             Token::YololNum(num) => Value::NumberVal(num),
 

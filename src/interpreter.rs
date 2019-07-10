@@ -7,8 +7,6 @@ use crate::types::Operator as Op;
 use crate::types::EvaluationError;
 use crate::types::EvaluationErrorKind;
 
-use crate::types::YololNumber;
-
 use crate::types::LiteralValue;
 
 use crate::environment::Environment as Env;
@@ -64,7 +62,7 @@ fn evaluate_goto(env: &mut Env, target: Box<Expr>) -> Result<(), EvaluationError
             let num = num.clamp(1, 20);
             env.set_next_line(num);
         },
-        LiteralValue::StringVal(string) => {
+        LiteralValue::StringVal(_) => {
             return Err(EvaluationError {
                 kind: EvaluationErrorKind::Misc,
                 error_text: String::from("Attempted to goto with a string value!")

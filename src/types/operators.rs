@@ -2,7 +2,6 @@ use std::fmt;
 use std::error;
 
 use super::LiteralValue;
-use super::EvaluationError;
 
 #[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
 pub enum Operator

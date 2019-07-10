@@ -4,7 +4,6 @@ use crate::types::Expression as Expr;
 use crate::types::Operator as Op;
 
 use crate::types::Value;
-use crate::types::LiteralValue;
 
 use crate::types::ParseErrorKind;
 use crate::types::ExprError;
@@ -12,8 +11,6 @@ use crate::types::StatError;
 
 use crate::types::SlidingWindow;
 use crate::types::VecWindow;
-
-use crate::types::YololNumber;
 
 pub fn parse(input: Vec<Token>) -> Result<Vec<Stat>, StatError>
 {
@@ -27,16 +24,16 @@ pub fn parse(input: Vec<Token>) -> Result<Vec<Stat>, StatError>
 
         let (parsed, advance) = match value_tuple
         {
+            // This eventually needs to have meaning in ending the current line
             (Some(Token::Newline), _, _) => (None, 1),
-            (Some(Token::Comment(_)), _, _) => (None, 1),
-            // _ => (Some(parse_statement(&mut window)?.as_ref().clone()), 0),
+
             _ => {
                 let statement = match parse_statement(&mut window)
                 {
-                    Ok(stat) => stat.as_ref().clone(),
+                    Ok(stat) => stat,
                     Err(error) => {
                         println!("Erroring out. Current collected outputs: {:?}", output_vec);
-                        Err(error)?
+                        return Err(error);
                     },
                 };
                 (Some(statement), 0)
@@ -55,7 +52,7 @@ pub fn parse(input: Vec<Token>) -> Result<Vec<Stat>, StatError>
     Ok(output_vec)
 }
 
-fn parse_statement(window: &mut VecWindow<Token>) -> Result<Box<Stat>, StatError>
+fn parse_statement(window: &mut VecWindow<Token>) -> Result<Stat, StatError>
 {
     let value_tuple = (window.get_value(0), window.get_value(1), window.get_value(2));
     println!("[Parse Stat] Matching slice: {:?}", value_tuple);
@@ -66,53 +63,48 @@ fn parse_statement(window: &mut VecWindow<Token>) -> Result<Box<Stat>, StatError
             window.move_view(1);
             Stat::Comment(comment_string)
         } 
-        (Some(Token::Identifier(tok)), _, _) if tok.to_ascii_lowercase() == "goto" => {
-            window.move_view(3);
+
+        (Some(Token::Goto), _, _) => {
+            window.move_view(1);
             Stat::Goto(parse_expression(window)?)
         },
 
-        (Some(Token::Identifier(tok)), _, _) if tok.to_ascii_lowercase() == "if" => {
+        (Some(Token::If), _, _) => {
             window.move_view(1);
-            extend_if(window)?.as_ref().clone()
+            extend_if(window)?
         },
 
-        (Some(ident @ Token::Identifier(_)), Some(Token::Plus), Some(Token::Equal)) |
-        (Some(ident @ Token::DataField(_)), Some(Token::Plus), Some(Token::Equal)) => {
+        (Some(ident @ Token::Identifier(_)), Some(Token::Plus), Some(Token::Equal)) => {
             let value = Value::from(ident.clone());
             window.move_view(3);
             Stat::Assignment(value, Op::AddAssign, parse_expression(window)?)
         },
 
-        (Some(ident @ Token::Identifier(_)), Some(Token::Minus), Some(Token::Equal)) |
-        (Some(ident @ Token::DataField(_)), Some(Token::Minus), Some(Token::Equal)) => {
+        (Some(ident @ Token::Identifier(_)), Some(Token::Minus), Some(Token::Equal)) => {
             let value = Value::from(ident.clone());
             window.move_view(3);
             Stat::Assignment(value, Op::SubAssign, parse_expression(window)?)
         },
 
-        (Some(ident @ Token::Identifier(_)), Some(Token::Star), Some(Token::Equal)) |
-        (Some(ident @ Token::DataField(_)), Some(Token::Star), Some(Token::Equal)) => {
+        (Some(ident @ Token::Identifier(_)), Some(Token::Star), Some(Token::Equal)) => {
             let value = Value::from(ident.clone());
             window.move_view(3);
             Stat::Assignment(value, Op::MulAssign, parse_expression(window)?)
         },
 
-        (Some(ident @ Token::Identifier(_)), Some(Token::Slash), Some(Token::Equal)) |
-        (Some(ident @ Token::DataField(_)), Some(Token::Slash), Some(Token::Equal)) => {
+        (Some(ident @ Token::Identifier(_)), Some(Token::Slash), Some(Token::Equal)) => {
             let value = Value::from(ident.clone());
             window.move_view(3);
             Stat::Assignment(value, Op::DivAssign, parse_expression(window)?)
         },
 
-        (Some(ident @ Token::Identifier(_)), Some(Token::Percent), Some(Token::Equal)) |
-        (Some(ident @ Token::DataField(_)), Some(Token::Percent), Some(Token::Equal)) => {
+        (Some(ident @ Token::Identifier(_)), Some(Token::Percent), Some(Token::Equal)) => {
             let value = Value::from(ident.clone());
             window.move_view(3);
             Stat::Assignment(value, Op::ModAssign, parse_expression(window)?)
         },
 
-        (Some(ident @ Token::Identifier(_)), Some(Token::Equal), Some(tok)) |
-        (Some(ident @ Token::DataField(_)), Some(Token::Equal), Some(tok)) if *tok != Token::Equal => {
+        (Some(ident @ Token::Identifier(_)), Some(Token::Equal), Some(tok)) if *tok != Token::Equal => {
             let value = Value::from(ident.clone());
             window.move_view(2);
             Stat::Assignment(value, Op::Assign, parse_expression(window)?)
@@ -122,10 +114,10 @@ fn parse_statement(window: &mut VecWindow<Token>) -> Result<Box<Stat>, StatError
     };
 
     // Ok(Box::new(Stat::Assignment(Token::Caret, Op::Abs, Box::new(Expr::Value(Token::Caret)))))
-    Ok(Box::new(statement))
+    Ok(statement)
 }
 
-fn extend_if(window: &mut VecWindow<Token>) -> Result<Box<Stat>, StatError>
+fn extend_if(window: &mut VecWindow<Token>) -> Result<Stat, StatError>
 {
     println!("Parsing if condition...");
     let condition = parse_expression(window)?;
@@ -134,7 +126,7 @@ fn extend_if(window: &mut VecWindow<Token>) -> Result<Box<Stat>, StatError>
     println!("Vec head: {:?}", window.get_value(0));
     match window.get_value(0)
     {
-        Some(Token::Identifier(tok)) if tok.to_ascii_lowercase() == "then" => {
+        Some(Token::Then) => {
             window.move_view(1);
         },
         
@@ -152,11 +144,11 @@ fn extend_if(window: &mut VecWindow<Token>) -> Result<Box<Stat>, StatError>
         let value_tuple = (window.get_value(0), window.get_value(1));
         let statement = match value_tuple
         {
-            (Some(Token::Identifier(tok)), _) if tok.to_ascii_lowercase() == "else" => {
+            (Some(Token::Else), _) => {
                 if parsing_else
                 {
                     let error_stat = Stat::If(condition, body, Some(else_body));
-                    return Err(StatError::new(Some(Box::new(error_stat)),
+                    return Err(StatError::new(Some(error_stat),
                                 ParseErrorKind::RepeatedElseTokens,
                                 "Found an else token after already finding one for this if!"))
                 }
@@ -164,12 +156,12 @@ fn extend_if(window: &mut VecWindow<Token>) -> Result<Box<Stat>, StatError>
                 parsing_else = true;
                 continue
             },
-            (Some(Token::Identifier(tok)), _) if tok.to_ascii_lowercase() == "end" => {
+            (Some(Token::End), _) => {
                 window.move_view(1);
                 break
             },
 
-            _ => parse_statement(window)?.as_ref().clone()
+            _ => parse_statement(window)?
         };
 
         if parsing_else
@@ -182,7 +174,7 @@ fn extend_if(window: &mut VecWindow<Token>) -> Result<Box<Stat>, StatError>
         }
     }
 
-    let final_else = if else_body.len() > 0
+    let final_else = if else_body.is_empty() == false
     {
         Some(else_body)
     }
@@ -191,212 +183,577 @@ fn extend_if(window: &mut VecWindow<Token>) -> Result<Box<Stat>, StatError>
         None
     };
 
-    Ok(Box::new(Stat::If(condition, body, final_else)))
+    Ok(Stat::If(condition, body, final_else))
 }
 
 fn parse_expression(window: &mut VecWindow<Token>) -> Result<Box<Expr>, ExprError>
 {
-    let value_tuple = (window.get_value(0), window.get_value(1), window.get_value(2));
-    println!("[Parse Expr] Matching tuple: {:?}", value_tuple);
-    let expression = match value_tuple
+    Ok(Box::new(expr_and(window)?))
+}
+
+fn expr_and(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
+{
+    println!("[expr_and] Matching slice {:?}", (window.get_value(0), window.get_value(1), window.get_value(2)));
+    match expr_or(window)
     {
-        (Some(Token::LParen), _, _) => {
+        // The lower rule did match, so attempt to extend
+        Ok(expr) => {
+            match window.get_value(0)
+            {
+                Some(Token::And) => {
+                    extend_and(expr, window)
+                },
+
+                _ => Ok(expr)
+            }
+        },
+        // An error occurred in a lower rule, this is bad, throw back up the error
+        error @ Err(_) => {
+            error
+        },
+    }
+}
+
+fn extend_and(left: Expr, window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
+{
+    let op = match window.get_value(0)
+    {
+        Some(Token::And) => {
+            Op::And
+        },
+
+        _ => return Ok(left)
+    };
+
+    window.move_view(1);
+    match expr_or(window)
+    {
+        Ok(right) => {
+            // Found a right hand side for our rule, so construct the object
+            let expr = Expr::BinaryOp(op, Box::new(left), Box::new(right));
+            extend_and(expr, window)
+        }
+
+        _ => Err(ExprError::new(Some(left), ParseErrorKind::NoExtensionAvailable, "Syntax error in parsing an and!"))
+    }
+}
+
+fn expr_or(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
+{
+    println!("[expr_or] Matching slice {:?}", (window.get_value(0), window.get_value(1), window.get_value(2)));
+    match expr_equality(window)
+    {
+        // The lower rule did match, so attempt to extend
+        Ok(expr) => {
+            match window.get_value(0)
+            {
+                Some(Token::Or) => {
+                    extend_or(expr, window)
+                },
+
+                _ => Ok(expr)
+            }
+        },
+        // An error occurred in a lower rule, this is bad, throw back up the error
+        error @ Err(_) => {
+            error
+        },
+    }
+}
+
+fn extend_or(left: Expr, window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
+{
+    let op = match window.get_value(0)
+    {
+        Some(Token::Or) => {
+            Op::Or
+        },
+
+        _ => return Ok(left)
+    };
+
+    window.move_view(1);
+    match expr_equality(window)
+    {
+        Ok(right) => {
+            // Found a right hand side for our rule, so construct the object
+            let expr = Expr::BinaryOp(op, Box::new(left), Box::new(right));
+            extend_or(expr, window)
+        }
+
+        _ => Err(ExprError::new(Some(left), ParseErrorKind::NoExtensionAvailable, "Syntax error in parsing an or!"))
+    }
+}
+
+fn expr_equality(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
+{
+    println!("[expr_equality] Matching slice {:?}", (window.get_value(0), window.get_value(1), window.get_value(2)));
+    match expr_order(window)
+    {
+        // The lower rule did match, so attempt to extend
+        Ok(expr) => {
+            let value_tuple = (window.get_value(0), window.get_value(1));
+            match value_tuple
+            {
+                (Some(Token::Equal), Some(Token::Equal)) |
+                (Some(Token::Exclam), Some(Token::Equal)) => {
+                    extend_equality(expr, window)
+                },
+
+                _ => Ok(expr)
+            }
+        },
+        // An error occurred in a lower rule, this is bad, throw back up the error
+        error @ Err(_) => {
+            error
+        },
+    }
+}
+
+fn extend_equality(left: Expr, window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
+{
+    let op = match (window.get_value(0), window.get_value(1))
+    {
+        (Some(Token::Equal), Some(Token::Equal)) => {
+            Op::Equal
+        },
+
+        (Some(Token::Exclam), Some(Token::Equal)) => {
+            Op::NotEqual
+        },
+
+        _ => return Ok(left)
+    };
+
+    window.move_view(2);
+    match expr_order(window)
+    {
+        Ok(right) => {
+            // Found a right hand side for our rule, so construct the object
+            let expr = Expr::BinaryOp(op, Box::new(left), Box::new(right));
+            extend_equality(expr, window)
+        }
+
+        _ => Err(ExprError::new(Some(left), ParseErrorKind::NoExtensionAvailable, "Syntax error in parsing an equality!"))
+    }
+}
+
+fn expr_order(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
+{
+    println!("[expr_order] Matching slice {:?}", (window.get_value(0), window.get_value(1), window.get_value(2)));
+    match expr_additive(window)
+    {
+        // The lower rule did match, so attempt to extend
+        Ok(expr) => {
+            let value_tuple = (window.get_value(0), window.get_value(1));
+            match value_tuple
+            {
+                (Some(Token::LAngleBrak), Some(Token::Equal)) |
+                (Some(Token::LAngleBrak), _) |
+                (Some(Token::RAngleBrak), Some(Token::Equal)) |
+                (Some(Token::RAngleBrak), _) => {
+                    extend_order(expr, window)
+                },
+
+                _ => Ok(expr)
+            }
+        },
+        // An error occurred in a lower rule, this is bad, throw back up the error
+        error @ Err(_) => {
+            error
+        },
+    }
+}
+
+fn extend_order(left: Expr, window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
+{
+    let op = match (window.get_value(0), window.get_value(1))
+    {
+        (Some(Token::LAngleBrak), Some(Token::Equal)) => {
+            window.move_view(2);
+            Op::LesserEq
+        },
+        (Some(Token::LAngleBrak), _) => {
             window.move_view(1);
-            println!("Saw LParen, recursing for group parsing...");
+            Op::Lesser
+        },
+
+        (Some(Token::RAngleBrak), Some(Token::Equal)) => {
+            window.move_view(2);
+            Op::GreaterEq
+        },
+        (Some(Token::RAngleBrak), _) => {
+            window.move_view(1);
+            Op::Greater
+        },
+
+        _ => return Ok(left)
+    };
+
+    match expr_additive(window)
+    {
+        Ok(right) => {
+            // Found a right hand side for our rule, so construct the object
+            let expr = Expr::BinaryOp(op, Box::new(left), Box::new(right));
+            extend_order(expr, window)
+        }
+
+        _ => Err(ExprError::new(Some(left), ParseErrorKind::NoExtensionAvailable, "Syntax error in parsing an order!"))
+    }
+}
+
+fn expr_additive(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
+{
+    println!("[expr_additive] Matching slice {:?}", (window.get_value(0), window.get_value(1), window.get_value(2)));
+    match expr_multiply(window)
+    {
+        // The lower rule did match, so attempt to extend
+        Ok(expr) => {
+            match window.get_value(0)
+            {
+                Some(Token::Plus) |
+                Some(Token::Minus) => {
+                    extend_additive(expr, window)
+                }
+
+                _ => Ok(expr)
+            }
+        },
+        // An error occurred in a lower rule, this is bad, throw back up the error
+        error @ Err(_) => {
+            error
+        },
+    }
+}
+
+fn extend_additive(left: Expr, window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
+{
+    let op = match window.get_value(0)
+    {
+        Some(Token::Plus) => {
+            Op::Add
+        },
+
+        Some(Token::Minus) => {
+            Op::Sub
+        },
+
+        _ => return Ok(left)
+    };
+
+    window.move_view(1);
+    match expr_multiply(window)
+    {
+        Ok(right) => {
+            // Found a right hand side for our rule, so construct the object
+            let expr = Expr::BinaryOp(op, Box::new(left), Box::new(right));
+            extend_additive(expr, window)
+        }
+
+        _ => Err(ExprError::new(Some(left), ParseErrorKind::NoExtensionAvailable, "Syntax error in parsing an additive!"))
+    }
+}
+
+fn expr_multiply(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
+{
+    println!("[expr_multiply] Matching slice {:?}", (window.get_value(0), window.get_value(1), window.get_value(2)));
+    match expr_exponent(window)
+    {
+        // The lower rule did match, so attempt to extend
+        Ok(expr) => {
+            match window.get_value(0)
+            {
+                Some(Token::Slash) |
+                Some(Token::Star)  |
+                Some(Token::Percent) => {
+                    extend_multiply(expr, window)
+                },
+
+                _ => Ok(expr)
+            }
+        },
+        // An error occurred in a lower rule, this is bad, throw back up the error
+        error @ Err(_) => {
+            error
+        },
+    }
+}
+
+fn extend_multiply(left: Expr, window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
+{
+    let op = match window.get_value(0)
+    {
+        Some(Token::Slash) => {
+            Op::Div
+        },
+
+        Some(Token::Star) => {
+            Op::Mul
+        },
+
+        Some(Token::Percent) => {
+            Op::Mod
+        },
+
+        _ => return Ok(left)
+    };
+
+    window.move_view(1);
+    match expr_exponent(window)
+    {
+        Ok(right) => {
+            // Found a right hand side for our rule, so construct the object
+            let expr = Expr::BinaryOp(op, Box::new(left), Box::new(right));
+            extend_multiply(expr, window)
+        }
+
+        _ => Err(ExprError::new(Some(left), ParseErrorKind::NoExtensionAvailable, "Syntax error in parsing a multiply!"))
+    }
+}
+
+// Doesn't use extension idiom due to being right associative
+fn expr_exponent(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
+{
+    println!("[expr_exponent] Matching slice {:?}", (window.get_value(0), window.get_value(1), window.get_value(2)));
+    match expr_postfix(window)
+    {
+        // The lower rule did match, so attempt to extend
+        Ok(expr) => {
+            match window.get_value(0)
+            {
+                Some(Token::Caret) => {
+                    window.move_view(1);
+                    let left = Box::new(expr);
+                    let right = Box::new(expr_exponent(window)?);
+
+                    Ok(Expr::BinaryOp(Op::Pow, left, right))
+                },
+                _ => Ok(expr)
+            }
+        },
+        // An error occurred in a lower rule, this is bad, throw back up the error
+        error @ Err(_) => {
+            error
+        },
+    }
+}
+
+fn expr_postfix(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
+{
+    println!("[expr_postfix] Matching slice {:?}", (window.get_value(0), window.get_value(1), window.get_value(2)));
+    match expr_keyword(window)
+    {
+        // The lower rule did match, so attempt to extend to form this rule
+        Ok(expr) => Ok(extend_postfix(expr, window)),
+
+        // An error occurred in a lower rule, this is bad, throw back up the error
+        error @ Err(_) => {
+            error
+        },
+    }
+}
+
+fn extend_postfix(expr: Expr, window: &mut VecWindow<Token>) -> Expr
+{
+    match window.get_value(0)
+    {
+        Some(Token::Exclam) => {
+            window.move_view(1);
+            extend_postfix(Expr::UnaryOp(Op::Fact, Box::new(expr)), window)
+        }
+        _ => expr
+    }
+}
+
+fn expr_keyword(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
+{
+    println!("[expr_keyword] Matching slice {:?}", (window.get_value(0), window.get_value(1), window.get_value(2)));
+    match expr_neg(window)
+    {
+        // The rule below simply didn't match onto the window, so now it's our turn
+        Err(ExprError { kind: ParseErrorKind::NoParseRuleMatch, .. }) => {
+            match window.get_value(0)
+            {
+                Some(Token::Abs) => {
+                    window.move_view(1);
+                    let operand = Box::new(expr_keyword(window)?);
+
+                    Ok(Expr::UnaryOp(Op::Abs, operand))
+                },
+                Some(Token::Sqrt) => {
+                    window.move_view(1);
+                    let operand = Box::new(expr_keyword(window)?);
+
+                    Ok(Expr::UnaryOp(Op::Sqrt, operand))
+                },
+                Some(Token::Sin) => {
+                    window.move_view(1);
+                    let operand = Box::new(expr_keyword(window)?);
+
+                    Ok(Expr::UnaryOp(Op::Sin, operand))
+                },
+                Some(Token::Cos) => {
+                    window.move_view(1);
+                    let operand = Box::new(expr_keyword(window)?);
+
+                    Ok(Expr::UnaryOp(Op::Cos, operand))
+                },
+                Some(Token::Tan) => {
+                    window.move_view(1);
+                    let operand = Box::new(expr_keyword(window)?);
+
+                    Ok(Expr::UnaryOp(Op::Tan, operand))
+                },
+                Some(Token::Arcsin) => {
+                    window.move_view(1);
+                    let operand = Box::new(expr_keyword(window)?);
+
+                    Ok(Expr::UnaryOp(Op::Arcsin, operand))
+                },
+                Some(Token::Arccos) => {
+                    window.move_view(1);
+                    let operand = Box::new(expr_keyword(window)?);
+
+                    Ok(Expr::UnaryOp(Op::Arccos, operand))
+                },
+                Some(Token::Arctan) => {
+                    window.move_view(1);
+                    let operand = Box::new(expr_keyword(window)?);
+
+                    Ok(Expr::UnaryOp(Op::Arctan, operand))
+                },
+                Some(Token::Not) => {
+                    window.move_view(1);
+                    let operand = Box::new(expr_keyword(window)?);
+
+                    Ok(Expr::UnaryOp(Op::Not, operand))
+                },
+
+                _ => Err(ExprError::new(None,
+                        ParseErrorKind::NoParseRuleMatch,
+                        "In expr_keyword, can't find keyword operator after lower rule failed to match!"))
+            }
+        },
+        // The lower rule did match, so just pass back up the expression it created
+        expr @ Ok(_) => {
+            expr
+        }
+        // A different error occurred in a lower rule, this is bad, throw back up the error
+        error @ Err(_) => {
+            error
+        },
+    }
+}
+
+fn expr_neg(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
+{
+    println!("[expr_neg] Matching slice {:?}", (window.get_value(0), window.get_value(1), window.get_value(2)));
+    match expr_ident(window)
+    {
+        // The rule below simply didn't match onto the window, so now it's our turn
+        Err(ExprError { kind: ParseErrorKind::NoParseRuleMatch, .. }) => {
+            match window.get_value(0)
+            {
+                Some(Token::Minus) => {
+                    window.move_view(1);
+                    let operand = Box::new(expr_neg(window)?);
+
+                    Ok(Expr::UnaryOp(Op::Negate, operand))
+                }
+
+                _ => {
+                    Err(ExprError::new(None,
+                        ParseErrorKind::NoParseRuleMatch,
+                        "In expr_neg, can't find minus after lower rule failed to match!"))
+                }
+            }
+        },
+        // The lower rule did match, so just pass back up the expression it created
+        expr @ Ok(_) => {
+            expr
+        }
+        // A different error occurred in a lower rule, this is bad, throw back up the error
+        error @ Err(_) => {
+            error
+        },
+    }
+}
+
+fn expr_ident(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
+{
+    let value_tuple = (window.get_value(0), window.get_value(1), window.get_value(2));
+    println!("[expr_ident] Matching slice {:?}", value_tuple);   
+    let expr = match value_tuple
+    {
+        // Postfix inc/dec operator parsing
+        (Some(ident @ Token::Identifier(_)), Some(Token::Plus), Some(Token::Plus)) => {
+            let value = Value::from(ident.clone());
+            window.move_view(3);
+            
+            Expr::UnaryOp(Op::PostInc, Box::new(Expr::Value(value)))
+        },
+        (Some(ident @ Token::Identifier(_)), Some(Token::Minus), Some(Token::Minus)) => {
+            let value = Value::from(ident.clone());
+            window.move_view(3);
+
+            Expr::UnaryOp(Op::PostDec, Box::new(Expr::Value(value)))
+        },
+
+        // Prefix inc/dec operator parsing
+        (Some(Token::Plus), Some(Token::Plus), Some(ident @ Token::Identifier(_))) => {
+            let value = Value::from(ident.clone());
+            window.move_view(3);
+
+            Expr::UnaryOp(Op::PreInc, Box::new(Expr::Value(value)))
+        },
+        (Some(Token::Minus), Some(Token::Minus), Some(ident @ Token::Identifier(_))) => {
+            let value = Value::from(ident.clone());
+            window.move_view(3);
+
+            Expr::UnaryOp(Op::PreDec, Box::new(Expr::Value(value)))
+        },
+
+        // Parses into any value, which is then wrapped into an expression
+        _ => Expr::Value(parse_value(window)?)
+    };
+
+    Ok(expr)
+}
+
+
+fn parse_value(window: &mut VecWindow<Token>) -> Result<Value, ExprError>
+{
+    match window.get_value(0)
+    {
+        Some(tok @ Token::StringToken(_)) |
+        Some(tok @ Token::YololNum(_)) |
+        Some(tok @ Token::Identifier(_)) => {
+            let tok = tok.clone();
+            println!("Parsing value {:?}", tok);
+            window.move_view(1);
+            println!("Window after value parse: {:?}", (window.get_value(0), window.get_value(1), window.get_value(2)));
+
+            Ok(Value::from(tok))
+        },
+
+        Some(Token::LParen) => {
+            window.move_view(1);
+            println!("Saw LParen, starting group parsing...");
             let output = parse_expression(window)?;
-
-            // println!("After group inner expression parse attempt. Vec head: {:?}", window.get_value(0));
-
-            // match output
-            // {
-            //     Ok(expr) => {},
-            //     Err(ExprError { input_expr: expr, ParseErrorKind::NoParseRuleMatch, ... }) => {},
-            // }
 
             match window.get_value(0)
             {
                 Some(Token::RParen) => {
                     window.move_view(1);
-                    Expr::Value(Value::Group(output))
+                    Ok(Value::Group(output))
                 },
-                _ => return Err(ExprError::new(Some(output), ParseErrorKind::UnbalancedParenthesis, "Saw LParen, parsed expr, found no RParen!"))
+
+                _ => Err(ExprError::new(Some(*output), ParseErrorKind::UnbalancedParenthesis, "Saw LParen, parsed expr, found no RParen!"))
             }
         },
 
-        (Some(Token::Minus), Some(Token::Minus), _) => {
-            window.move_view(2);
-            Expr::UnaryOp(Op::PreDec, parse_expression(window)?)
-        },
-        (Some(Token::Plus), Some(Token::Plus), _) =>  {
-            window.move_view(2);
-            Expr::UnaryOp(Op::PreInc, parse_expression(window)?)
-        },
-        (Some(Token::Minus), _, _) =>  {
-            window.move_view(1);
-            Expr::UnaryOp(Op::Negate, parse_expression(window)?)
-        },
-
-        (Some(Token::Identifier(tok)), _, _) if tok.to_ascii_lowercase() == "abs" => {
-            window.move_view(1);
-            Expr::UnaryOp(Op::Abs, parse_expression(window)?)
-        },
-        (Some(Token::Identifier(tok)), _, _) if tok.to_ascii_lowercase() == "sqrt" => {
-            window.move_view(1);
-            Expr::UnaryOp(Op::Sqrt, parse_expression(window)?)
-        },
-        (Some(Token::Identifier(tok)), _, _) if tok.to_ascii_lowercase() == "sin" => {
-            window.move_view(1);
-            Expr::UnaryOp(Op::Sin, parse_expression(window)?)
-        },
-        (Some(Token::Identifier(tok)), _, _) if tok.to_ascii_lowercase() == "cos" => {
-            window.move_view(1);
-            Expr::UnaryOp(Op::Cos, parse_expression(window)?)
-        },
-        (Some(Token::Identifier(tok)), _, _) if tok.to_ascii_lowercase() == "tan" => {
-            window.move_view(1);
-            Expr::UnaryOp(Op::Tan, parse_expression(window)?)
-        },
-        (Some(Token::Identifier(tok)), _, _) if tok.to_ascii_lowercase() == "arcsin" => {
-            window.move_view(1);
-            Expr::UnaryOp(Op::Arcsin, parse_expression(window)?)
-        },
-        (Some(Token::Identifier(tok)), _, _) if tok.to_ascii_lowercase() == "arccos" => {
-            window.move_view(1);
-            Expr::UnaryOp(Op::Arccos, parse_expression(window)?)
-        },
-        (Some(Token::Identifier(tok)), _, _) if tok.to_ascii_lowercase() == "arctan" => {
-            window.move_view(1);
-            Expr::UnaryOp(Op::Arctan, parse_expression(window)?)
-        },
-        (Some(Token::Identifier(tok)), _, _) if tok.to_ascii_lowercase() == "not" => {
-            window.move_view(1);
-            Expr::UnaryOp(Op::Not, parse_expression(window)?)
-        },
-
-        (Some(tok @ Token::StringToken(_)), _, _) |
-        (Some(tok @ Token::YololNum(_)), _, _) |
-        (Some(tok @ Token::Identifier(_)), _, _) |
-        (Some(tok @ Token::DataField(_)), _, _) => {
-            let value = Value::from(tok.clone());
-            window.move_view(1);
-            Expr::Value(value)
-        },
-
-        tok => { println!("[Parse Expr] No match, returning..."); return Err(ExprError::new(None, ParseErrorKind::NoParseRuleMatch, format!("Parsing {:?} and didn't match", tok).as_str())) }
-    };
-
-    let expression = match extend_expression(Box::new(expression), window)
-    {
-        Ok(expr) |
-        Err(ExprError { input_expr: Some(expr), kind: ParseErrorKind::NoExtensionAvailable, .. }) => expr,
-        _ => panic!("Unknown extend expression error!")
-    };
-
-    println!("[Parse Expr] Returning parsed expr {:?}", expression.as_ref());
-    Ok(expression)
-}
-
-// Best way to do this is to have an "expr error" that returns an error _and_ moves ownership of the input expr
-// back out to the function that receives the error
-fn extend_expression(expr: Box<Expr>, window: &mut VecWindow<Token>) -> Result<Box<Expr>, ExprError>
-{
-    let value_tuple = (window.get_value(0), window.get_value(1), window.get_value(2));
-    println!("[Extend Expr] Matching tuple: {:?}", value_tuple);
-    let expression = match value_tuple
-    {
-        // Post increment and post decrement
-        (Some(Token::Plus), Some(Token::Plus), _) => {
-            window.move_view(2);
-            Expr::UnaryOp(Op::PostInc, expr)
-        },
-        (Some(Token::Minus), Some(Token::Minus), _) => {
-            window.move_view(2);
-            Expr::UnaryOp(Op::PostDec, expr)
-        },
-
-        // Less than, greater than, and derivatives
-        (Some(Token::LAngleBrak), Some(Token::Equal), _) => {
-            window.move_view(2);
-            Expr::BinaryOp(Op::LesserEq, expr, parse_expression(window)?)
-        },
-        (Some(Token::RAngleBrak), Some(Token::Equal), _) => {
-            window.move_view(2);
-            Expr::BinaryOp(Op::GreaterEq, expr, parse_expression(window)?)
-        },
-        (Some(Token::LAngleBrak), _, _) => {
-            window.move_view(1);
-            Expr::BinaryOp(Op::Lesser, expr, parse_expression(window)?)
-        },
-        (Some(Token::RAngleBrak), _, _) => {
-            window.move_view(1);
-            Expr::BinaryOp(Op::Greater, expr, parse_expression(window)?)
-        },
-
-        // Equality and inverse equality matching
-        (Some(Token::Equal), Some(Token::Equal), _) => {
-            window.move_view(2);
-            Expr::BinaryOp(Op::Equal, expr, parse_expression(window)?)
-        },
-        (Some(Token::Exclam), Some(Token::Equal), _) => {
-            window.move_view(2);
-            Expr::BinaryOp(Op::NotEqual, expr, parse_expression(window)?)
-        },
-
-        // Factorial matching
-        (Some(Token::Exclam), _, _) => {
-            window.move_view(1);
-            Expr::UnaryOp(Op::Fact, expr)
-        },
-
-        // Logical and/or matching
-        (Some(Token::Identifier(tok)), _, _) if tok.to_ascii_lowercase() == "and" => {
-            window.move_view(1);
-            Expr::BinaryOp(Op::And, expr, parse_expression(window)?)
-        },
-        (Some(Token::Identifier(tok)), _, _) if tok.to_ascii_lowercase() == "or" => {
-            window.move_view(1);
-            Expr::BinaryOp(Op::Or, expr, parse_expression(window)?)
-        },
-
-        // Infix operator matching
-        (Some(Token::Plus), _, _) => {
-            window.move_view(1);
-            Expr::BinaryOp(Op::Add, expr, parse_expression(window)?)
-        },
-        (Some(Token::Minus), _, _) => {
-            window.move_view(1);
-            Expr::BinaryOp(Op::Sub, expr, parse_expression(window)?)
-        },
-        (Some(Token::Star), _, _) => {
-            window.move_view(1);
-            Expr::BinaryOp(Op::Mul, expr, parse_expression(window)?)
-        },
-        (Some(Token::Slash), _, _) => {
-            window.move_view(1);
-            Expr::BinaryOp(Op::Div, expr, parse_expression(window)?)
-        },
-        (Some(Token::Percent), _, _) => {
-            window.move_view(1);
-            Expr::BinaryOp(Op::Mod, expr, parse_expression(window)?)
-        },
-        (Some(Token::Caret), _, _) => {
-            window.move_view(1);
-            Expr::BinaryOp(Op::Pow, expr, parse_expression(window)?)
-        },
-
-        tok => { println!("[Extend Expr] No match, returning..."); return Err(ExprError::new(Some(expr), ParseErrorKind::NoExtensionAvailable, format!("Extending and didn't match on {:?}", tok).as_str())) }
-    };
-
-    let expression = match extend_expression(Box::new(expression), window)
-    {
-        Ok(expr) => expr,
-        Err(ExprError { input_expr: Some(expr), kind: ParseErrorKind::NoExtensionAvailable, error_text: error }) => expr,
-        _ => panic!("Unknown extend expression error!")
-    };
-
-    println!("[Extend Expr] Returning: {:?}", expression.as_ref());
-
-    Ok(expression)
+        _ => Err(ExprError::new(None, ParseErrorKind::NoParseRuleMatch, "No match while parsing value!"))
+    }
 }
 
 

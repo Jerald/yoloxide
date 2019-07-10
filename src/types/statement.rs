@@ -21,7 +21,7 @@ impl fmt::Display for Statement
     {
         let write_value: String = match self
         {
-            Statement::Comment(string) => format!("//{}\n", string),
+            Statement::Comment(string) => format!("//{}", string),
             Statement::If(cond, ref body, Some(ref else_body)) => format!("if {} then {} else {} end", cond, body.iter().fold(String::from(""), |a, e| a + e.to_string().as_str()), else_body.iter().fold(String::from(""), |a, e| a + e.to_string().as_str())),
             Statement::If(cond, body, None) => format!("if {} then {} end", cond, body.iter().fold(String::from(""), |a, e| a + e.to_string().as_str())),
 
