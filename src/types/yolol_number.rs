@@ -1,8 +1,6 @@
 use std::ops;
 use std::cmp;
 
-use std::convert::TryInto;
-
 const CONVERSION_CONST: i64 = 10000;
 
 type InnerType = i64;

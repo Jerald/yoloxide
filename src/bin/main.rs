@@ -25,7 +25,7 @@ fn main()
 
     let statements = parser::parse(tokens).unwrap();
     println!("AST:");
-    println!("{:#?}", statements);
+    println!("{:?}", statements);
 
     let mut test_env = Environment::new("Test Env");
 

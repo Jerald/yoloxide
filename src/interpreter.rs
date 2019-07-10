@@ -7,8 +7,6 @@ use crate::types::Operator as Op;
 use crate::types::EvaluationError;
 use crate::types::EvaluationErrorKind;
 
-use crate::types::YololNumber;
-
 use crate::types::LiteralValue;
 
 use crate::environment::Environment as Env;

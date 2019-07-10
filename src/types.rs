@@ -89,7 +89,7 @@ impl ExprError
     {
         ExprError {
             input_expr: expr,
-            kind: kind,
+            kind,
             error_text: String::from(error_text)
         }
     }
@@ -125,7 +125,7 @@ impl StatError
     {
         StatError {
             input_stat: stat,
-            kind: kind,
+            kind,
             error_text: String::from(error_text)
         }
     }

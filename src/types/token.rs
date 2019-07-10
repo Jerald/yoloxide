@@ -1,10 +1,6 @@
 use std::fmt;
-use std::error;
-use std::convert::TryInto;
 
 use super::YololNumber;
-use super::Operator;
-use super::Value;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Token

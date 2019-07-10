@@ -201,11 +201,7 @@ fn expr_and(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
             match window.get_value(0)
             {
                 Some(Token::And) => {
-                    window.move_view(1);
-                    let left = Box::new(expr);
-                    let right = Box::new(expr_or(window)?);
-
-                    Ok(Expr::BinaryOp(Op::And, left, right))
+                    extend_and(expr, window)
                 },
 
                 _ => Ok(expr)
@@ -215,6 +211,30 @@ fn expr_and(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
         error @ Err(_) => {
             error
         },
+    }
+}
+
+fn extend_and(left: Expr, window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
+{
+    let op = match window.get_value(0)
+    {
+        Some(Token::And) => {
+            Op::And
+        },
+
+        _ => return Ok(left)
+    };
+
+    window.move_view(1);
+    match expr_or(window)
+    {
+        Ok(right) => {
+            // Found a right hand side for our rule, so construct the object
+            let expr = Expr::BinaryOp(op, Box::new(left), Box::new(right));
+            extend_and(expr, window)
+        }
+
+        _ => Err(ExprError::new(Some(left), ParseErrorKind::NoExtensionAvailable, "Syntax error in parsing an and!"))
     }
 }
 
@@ -228,11 +248,7 @@ fn expr_or(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
             match window.get_value(0)
             {
                 Some(Token::Or) => {
-                    window.move_view(1);
-                    let left = Box::new(expr);
-                    let right = Box::new(expr_equality(window)?);
-
-                    Ok(Expr::BinaryOp(Op::Or, left, right))
+                    extend_or(expr, window)
                 },
 
                 _ => Ok(expr)
@@ -242,6 +258,30 @@ fn expr_or(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
         error @ Err(_) => {
             error
         },
+    }
+}
+
+fn extend_or(left: Expr, window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
+{
+    let op = match window.get_value(0)
+    {
+        Some(Token::Or) => {
+            Op::Or
+        },
+
+        _ => return Ok(left)
+    };
+
+    window.move_view(1);
+    match expr_equality(window)
+    {
+        Ok(right) => {
+            // Found a right hand side for our rule, so construct the object
+            let expr = Expr::BinaryOp(op, Box::new(left), Box::new(right));
+            extend_or(expr, window)
+        }
+
+        _ => Err(ExprError::new(Some(left), ParseErrorKind::NoExtensionAvailable, "Syntax error in parsing an or!"))
     }
 }
 
@@ -255,19 +295,9 @@ fn expr_equality(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
             let value_tuple = (window.get_value(0), window.get_value(1));
             match value_tuple
             {
+                (Some(Token::Equal), Some(Token::Equal)) |
                 (Some(Token::Exclam), Some(Token::Equal)) => {
-                    window.move_view(2);
-                    let left = Box::new(expr);
-                    let right = Box::new(expr_order(window)?);
-
-                    Ok(Expr::BinaryOp(Op::NotEqual, left, right))
-                },
-                (Some(Token::Equal), Some(Token::Equal)) => {
-                    window.move_view(2);
-                    let left = Box::new(expr);
-                    let right = Box::new(expr_order(window)?);
-
-                    Ok(Expr::BinaryOp(Op::Equal, left, right))
+                    extend_equality(expr, window)
                 },
 
                 _ => Ok(expr)
@@ -277,6 +307,34 @@ fn expr_equality(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
         error @ Err(_) => {
             error
         },
+    }
+}
+
+fn extend_equality(left: Expr, window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
+{
+    let op = match (window.get_value(0), window.get_value(1))
+    {
+        (Some(Token::Equal), Some(Token::Equal)) => {
+            Op::Equal
+        },
+
+        (Some(Token::Exclam), Some(Token::Equal)) => {
+            Op::NotEqual
+        },
+
+        _ => return Ok(left)
+    };
+
+    window.move_view(2);
+    match expr_order(window)
+    {
+        Ok(right) => {
+            // Found a right hand side for our rule, so construct the object
+            let expr = Expr::BinaryOp(op, Box::new(left), Box::new(right));
+            extend_equality(expr, window)
+        }
+
+        _ => Err(ExprError::new(Some(left), ParseErrorKind::NoExtensionAvailable, "Syntax error in parsing an equality!"))
     }
 }
 
@@ -290,34 +348,11 @@ fn expr_order(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
             let value_tuple = (window.get_value(0), window.get_value(1));
             match value_tuple
             {
-                (Some(Token::LAngleBrak), Some(Token::Equal)) => {
-                    window.move_view(2);
-                    let left = Box::new(expr);
-                    let right = Box::new(expr_additive(window)?);
-
-                    Ok(Expr::BinaryOp(Op::LesserEq, left, right))
-                },
-                (Some(Token::LAngleBrak), _) => {
-                    window.move_view(1);
-                    let left = Box::new(expr);
-                    let right = Box::new(expr_additive(window)?);
-
-                    Ok(Expr::BinaryOp(Op::Lesser, left, right))
-                },
-
-                (Some(Token::RAngleBrak), Some(Token::Equal)) => {
-                    window.move_view(2);
-                    let left = Box::new(expr);
-                    let right = Box::new(expr_additive(window)?);
-
-                    Ok(Expr::BinaryOp(Op::GreaterEq, left, right))
-                },
+                (Some(Token::LAngleBrak), Some(Token::Equal)) |
+                (Some(Token::LAngleBrak), _) |
+                (Some(Token::RAngleBrak), Some(Token::Equal)) |
                 (Some(Token::RAngleBrak), _) => {
-                    window.move_view(1);
-                    let left = Box::new(expr);
-                    let right = Box::new(expr_additive(window)?);
-
-                    Ok(Expr::BinaryOp(Op::Greater, left, right))
+                    extend_order(expr, window)
                 },
 
                 _ => Ok(expr)
@@ -327,6 +362,43 @@ fn expr_order(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
         error @ Err(_) => {
             error
         },
+    }
+}
+
+fn extend_order(left: Expr, window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
+{
+    let op = match (window.get_value(0), window.get_value(1))
+    {
+        (Some(Token::LAngleBrak), Some(Token::Equal)) => {
+            window.move_view(2);
+            Op::LesserEq
+        },
+        (Some(Token::LAngleBrak), _) => {
+            window.move_view(1);
+            Op::Lesser
+        },
+
+        (Some(Token::RAngleBrak), Some(Token::Equal)) => {
+            window.move_view(2);
+            Op::GreaterEq
+        },
+        (Some(Token::RAngleBrak), _) => {
+            window.move_view(1);
+            Op::Greater
+        },
+
+        _ => return Ok(left)
+    };
+
+    match expr_additive(window)
+    {
+        Ok(right) => {
+            // Found a right hand side for our rule, so construct the object
+            let expr = Expr::BinaryOp(op, Box::new(left), Box::new(right));
+            extend_order(expr, window)
+        }
+
+        _ => Err(ExprError::new(Some(left), ParseErrorKind::NoExtensionAvailable, "Syntax error in parsing an order!"))
     }
 }
 
@@ -339,20 +411,10 @@ fn expr_additive(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
         Ok(expr) => {
             match window.get_value(0)
             {
-                Some(Token::Plus) => {
-                    window.move_view(1);
-                    let left = Box::new(expr);
-                    let right = Box::new(expr_multiply(window)?);
-
-                    Ok(Expr::BinaryOp(Op::Add, left, right))
-                },
+                Some(Token::Plus) |
                 Some(Token::Minus) => {
-                    window.move_view(1);
-                    let left = Box::new(expr);
-                    let right = Box::new(expr_multiply(window)?);
-
-                    Ok(Expr::BinaryOp(Op::Sub, left, right))
-                },
+                    extend_additive(expr, window)
+                }
 
                 _ => Ok(expr)
             }
@@ -361,6 +423,34 @@ fn expr_additive(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
         error @ Err(_) => {
             error
         },
+    }
+}
+
+fn extend_additive(left: Expr, window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
+{
+    let op = match window.get_value(0)
+    {
+        Some(Token::Plus) => {
+            Op::Add
+        },
+
+        Some(Token::Minus) => {
+            Op::Sub
+        },
+
+        _ => return Ok(left)
+    };
+
+    window.move_view(1);
+    match expr_multiply(window)
+    {
+        Ok(right) => {
+            // Found a right hand side for our rule, so construct the object
+            let expr = Expr::BinaryOp(op, Box::new(left), Box::new(right));
+            extend_additive(expr, window)
+        }
+
+        _ => Err(ExprError::new(Some(left), ParseErrorKind::NoExtensionAvailable, "Syntax error in parsing an additive!"))
     }
 }
 
@@ -373,26 +463,10 @@ fn expr_multiply(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
         Ok(expr) => {
             match window.get_value(0)
             {
-                Some(Token::Slash) => {
-                    window.move_view(1);
-                    let left = Box::new(expr);
-                    let right = Box::new(expr_exponent(window)?);
-
-                    Ok(Expr::BinaryOp(Op::Div, left, right))
-                },
-                Some(Token::Star) => {
-                    window.move_view(1);
-                    let left = Box::new(expr);
-                    let right = Box::new(expr_exponent(window)?);
-
-                    Ok(Expr::BinaryOp(Op::Mul, left, right))
-                },
+                Some(Token::Slash) |
+                Some(Token::Star)  |
                 Some(Token::Percent) => {
-                    window.move_view(1);
-                    let left = Box::new(expr);
-                    let right = Box::new(expr_exponent(window)?);
-
-                    Ok(Expr::BinaryOp(Op::Mod, left, right))
+                    extend_multiply(expr, window)
                 },
 
                 _ => Ok(expr)
@@ -405,6 +479,39 @@ fn expr_multiply(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
     }
 }
 
+fn extend_multiply(left: Expr, window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
+{
+    let op = match window.get_value(0)
+    {
+        Some(Token::Slash) => {
+            Op::Div
+        },
+
+        Some(Token::Star) => {
+            Op::Mul
+        },
+
+        Some(Token::Percent) => {
+            Op::Mod
+        },
+
+        _ => return Ok(left)
+    };
+
+    window.move_view(1);
+    match expr_exponent(window)
+    {
+        Ok(right) => {
+            // Found a right hand side for our rule, so construct the object
+            let expr = Expr::BinaryOp(op, Box::new(left), Box::new(right));
+            extend_multiply(expr, window)
+        }
+
+        _ => Err(ExprError::new(Some(left), ParseErrorKind::NoExtensionAvailable, "Syntax error in parsing a multiply!"))
+    }
+}
+
+// Doesn't use extension idiom due to being right associative
 fn expr_exponent(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
 {
     println!("[expr_exponent] Matching slice {:?}", (window.get_value(0), window.get_value(1), window.get_value(2)));
@@ -417,7 +524,7 @@ fn expr_exponent(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
                 Some(Token::Caret) => {
                     window.move_view(1);
                     let left = Box::new(expr);
-                    let right = Box::new(expr_postfix(window)?);
+                    let right = Box::new(expr_exponent(window)?);
 
                     Ok(Expr::BinaryOp(Op::Pow, left, right))
                 },
@@ -436,21 +543,25 @@ fn expr_postfix(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
     println!("[expr_postfix] Matching slice {:?}", (window.get_value(0), window.get_value(1), window.get_value(2)));
     match expr_keyword(window)
     {
-        // The lower rule did match, so attempt to extend
-        Ok(expr) => {
-            match window.get_value(0)
-            {
-                Some(Token::Exclam) => {
-                    window.move_view(1);
-                    Ok(Expr::UnaryOp(Op::Fact, Box::new(expr)))
-                },
-                _ => Ok(expr)
-            }
-        },
+        // The lower rule did match, so attempt to extend to form this rule
+        Ok(expr) => Ok(extend_postfix(expr, window)),
+
         // An error occurred in a lower rule, this is bad, throw back up the error
         error @ Err(_) => {
             error
         },
+    }
+}
+
+fn extend_postfix(expr: Expr, window: &mut VecWindow<Token>) -> Expr
+{
+    match window.get_value(0)
+    {
+        Some(Token::Exclam) => {
+            window.move_view(1);
+            extend_postfix(Expr::UnaryOp(Op::Fact, Box::new(expr)), window)
+        }
+        _ => expr
     }
 }
 
@@ -460,60 +571,60 @@ fn expr_keyword(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
     match expr_neg(window)
     {
         // The rule below simply didn't match onto the window, so now it's our turn
-        Err(ExprError { input_expr: _, kind: ParseErrorKind::NoParseRuleMatch, .. }) => {
+        Err(ExprError { kind: ParseErrorKind::NoParseRuleMatch, .. }) => {
             match window.get_value(0)
             {
                 Some(Token::Abs) => {
                     window.move_view(1);
-                    let operand = Box::new(expr_neg(window)?);
+                    let operand = Box::new(expr_keyword(window)?);
 
                     Ok(Expr::UnaryOp(Op::Abs, operand))
                 },
                 Some(Token::Sqrt) => {
                     window.move_view(1);
-                    let operand = Box::new(expr_neg(window)?);
+                    let operand = Box::new(expr_keyword(window)?);
 
                     Ok(Expr::UnaryOp(Op::Sqrt, operand))
                 },
                 Some(Token::Sin) => {
                     window.move_view(1);
-                    let operand = Box::new(expr_neg(window)?);
+                    let operand = Box::new(expr_keyword(window)?);
 
                     Ok(Expr::UnaryOp(Op::Sin, operand))
                 },
                 Some(Token::Cos) => {
                     window.move_view(1);
-                    let operand = Box::new(expr_neg(window)?);
+                    let operand = Box::new(expr_keyword(window)?);
 
                     Ok(Expr::UnaryOp(Op::Cos, operand))
                 },
                 Some(Token::Tan) => {
                     window.move_view(1);
-                    let operand = Box::new(expr_neg(window)?);
+                    let operand = Box::new(expr_keyword(window)?);
 
                     Ok(Expr::UnaryOp(Op::Tan, operand))
                 },
                 Some(Token::Arcsin) => {
                     window.move_view(1);
-                    let operand = Box::new(expr_neg(window)?);
+                    let operand = Box::new(expr_keyword(window)?);
 
                     Ok(Expr::UnaryOp(Op::Arcsin, operand))
                 },
                 Some(Token::Arccos) => {
                     window.move_view(1);
-                    let operand = Box::new(expr_neg(window)?);
+                    let operand = Box::new(expr_keyword(window)?);
 
                     Ok(Expr::UnaryOp(Op::Arccos, operand))
                 },
                 Some(Token::Arctan) => {
                     window.move_view(1);
-                    let operand = Box::new(expr_neg(window)?);
+                    let operand = Box::new(expr_keyword(window)?);
 
                     Ok(Expr::UnaryOp(Op::Arctan, operand))
                 },
                 Some(Token::Not) => {
                     window.move_view(1);
-                    let operand = Box::new(expr_neg(window)?);
+                    let operand = Box::new(expr_keyword(window)?);
 
                     Ok(Expr::UnaryOp(Op::Not, operand))
                 },
@@ -540,17 +651,17 @@ fn expr_neg(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
     match expr_ident(window)
     {
         // The rule below simply didn't match onto the window, so now it's our turn
-        Err(ExprError { input_expr: _, kind: ParseErrorKind::NoParseRuleMatch, .. }) => {
+        Err(ExprError { kind: ParseErrorKind::NoParseRuleMatch, .. }) => {
             match window.get_value(0)
             {
                 Some(Token::Minus) => {
                     window.move_view(1);
-                    let operand = Box::new(expr_ident(window)?);
+                    let operand = Box::new(expr_neg(window)?);
 
                     Ok(Expr::UnaryOp(Op::Negate, operand))
                 }
 
-                tok => {
+                _ => {
                     Err(ExprError::new(None,
                         ParseErrorKind::NoParseRuleMatch,
                         "In expr_neg, can't find minus after lower rule failed to match!"))

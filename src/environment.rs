@@ -1,27 +1,8 @@
-use std::ops;
 use std::fmt;
-
 use std::collections::HashMap;
-
-// use crate::types::Token;
-// use crate::types::YololNumber;
-
-use crate::types::Token;
-use crate::types::Token as Val;
-use crate::types::Statement as Stat;
-use crate::types::Expression as Expr;
-use crate::types::Operator as Op;
-
-use crate::types::ParseErrorKind;
-use crate::types::ExprError;
-use crate::types::StatError;
-
-use crate::types::SlidingWindow;
-use crate::types::VecWindow;
 
 use crate::types::LiteralValue;
 use crate::types::YololNumber;
-
 
 #[derive(Debug, Clone)]
 pub struct Environment<'a>

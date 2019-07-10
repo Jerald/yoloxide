@@ -2,8 +2,6 @@ use std::fmt;
 use std::ops;
 use std::cmp;
 
-use super::Value;
-
 use crate::types::YololNumber;
 
 use crate::types::Operator;
