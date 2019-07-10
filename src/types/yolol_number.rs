@@ -72,7 +72,6 @@ impl YololNumber
 
     pub fn pow(self, other: Self) -> Self
     {
-        println!("Self: {}, other: {}", self, other);
         let float_self = (self.0 as f64) / (CONVERSION_CONST as f64);
         let float_other = (other.0 as f64) / (CONVERSION_CONST as f64);
 
@@ -160,15 +159,6 @@ impl From<YololNumber> for InnerType
     fn from(input: YololNumber) -> InnerType
     {
         YololNumber::from_inner(input.0)
-    }
-}
-
-impl From<YololNumber> for u32
-{
-    fn from(input: YololNumber) -> u32
-    {
-        let inner = YololNumber::from_inner(input.0);
-        inner.try_into().unwrap()
     }
 }
 

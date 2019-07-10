@@ -1,14 +1,11 @@
 use std::env;
 use std::fs;
 
-use yoloxide::types::EvaluationError;
-
-use yoloxide::environment::{ Environment, ContextMap };
+use yoloxide::environment::Environment;
 
 use yoloxide::tokenizer;
 use yoloxide::parser;
 use yoloxide::interpreter;
-
 
 
 fn main()
@@ -21,14 +18,14 @@ fn main()
     println!("Original code:");
     println!("{}", yolol_code);
 
-    let tokens = tokenizer::basic::tokenize_basic(yolol_code).unwrap();
+    let tokens = tokenizer::tokenize(yolol_code, true).unwrap();
     println!("Tokens:");
     println!("{:?}", tokens);
 
 
     let statements = parser::parse(tokens).unwrap();
     println!("AST:");
-    println!("{:?}", statements);
+    println!("{:#?}", statements);
 
     let mut test_env = Environment::new("Test Env");
 

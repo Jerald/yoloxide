@@ -1,6 +1,5 @@
 use std::fmt;
 use std::error;
-use std::convert::TryInto;
 
 mod sliding_window;
 pub use sliding_window::*;
@@ -79,14 +78,14 @@ pub enum ParseErrorKind
 #[derive(Debug, Clone)]
 pub struct ExprError
 {
-    pub input_expr: Option<Box<Expression>>,
+    pub input_expr: Option<Expression>,
     pub kind: ParseErrorKind,
     pub error_text: String,
 }
 
 impl ExprError
 {
-    pub fn new(expr: Option<Box<Expression>>, kind: ParseErrorKind, error_text: &str) -> ExprError
+    pub fn new(expr: Option<Expression>, kind: ParseErrorKind, error_text: &str) -> ExprError
     {
         ExprError {
             input_expr: expr,
@@ -115,14 +114,14 @@ impl error::Error for ExprError
 #[derive(Debug, Clone)]
 pub struct StatError
 {
-    pub input_stat: Option<Box<Statement>>,
+    pub input_stat: Option<Statement>,
     pub kind: ParseErrorKind,
     pub error_text: String,
 }
 
 impl StatError
 {
-    pub fn new(stat: Option<Box<Statement>>, kind: ParseErrorKind, error_text: &str) -> StatError
+    pub fn new(stat: Option<Statement>, kind: ParseErrorKind, error_text: &str) -> StatError
     {
         StatError {
             input_stat: stat,
@@ -159,7 +158,7 @@ impl std::convert::From<ExprError> for StatError
 
         let stat = match input_expr
         {
-            Some(expr) => Some(Box::new(Statement::Expression(expr))),
+            Some(expr) => Some(Statement::Expression(Box::new(expr))),
             None => None
         };
 
