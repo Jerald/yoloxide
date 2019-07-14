@@ -1,11 +1,13 @@
 use std::ops;
 use std::cmp;
 
+use serde::{Serialize, Deserialize};
+
 const CONVERSION_CONST: i64 = 10000;
 
 type InnerType = i64;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct YololNumber(InnerType);
 
 impl YololNumber

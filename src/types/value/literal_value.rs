@@ -2,12 +2,14 @@ use std::fmt;
 use std::ops;
 use std::cmp;
 
+use serde::{Serialize, Deserialize};
+
 use crate::types::YololNumber;
 
 use crate::types::Operator;
 use crate::types::OperatorError;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum LiteralValue
 {
     NumberVal(YololNumber),

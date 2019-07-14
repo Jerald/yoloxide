@@ -22,6 +22,9 @@ pub use expression::*;
 mod statement;
 pub use statement::*;
 
+mod line;
+pub use line::*;
+
 #[derive(Debug, Clone)]
 pub struct EvaluationError
 {

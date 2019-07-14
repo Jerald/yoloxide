@@ -5,6 +5,8 @@ use crate::types::Operator as Op;
 
 use crate::types::Value;
 
+use crate::types::Line;
+
 use crate::types::ParseErrorKind;
 use crate::types::ExprError;
 use crate::types::StatError;
@@ -12,50 +14,86 @@ use crate::types::StatError;
 use crate::types::SlidingWindow;
 use crate::types::VecWindow;
 
-pub fn parse(input: Vec<Token>) -> Result<Vec<Stat>, StatError>
+pub fn parse_program(window: &mut VecWindow<Token>) -> Result<Vec<Line>, StatError>
 {
-    let mut output_vec: Vec<Stat> = Vec::new();
-    let mut window = VecWindow::new(&input, 0);
+    let mut line_vec: Vec<Line> = Vec::new();
+    let mut current_line: Vec<Stat> = Vec::new();
 
     while window.remaining_length() > 0
     {
-        let value_tuple = (window.get_value(0), window.get_value(1), window.get_value(2));
-        println!("[Parser] Matching slice: {:?}", value_tuple);
-
-        let (parsed, advance) = match value_tuple
+        if let Some(Token::Newline) = window.get_value(0)
         {
-            // This eventually needs to have meaning in ending the current line
-            (Some(Token::Newline), _, _) => (None, 1),
+            window.move_view(1);
 
-            _ => {
-                let statement = match parse_statement(&mut window)
-                {
-                    Ok(stat) => stat,
-                    Err(error) => {
-                        println!("Erroring out. Current collected outputs: {:?}", output_vec);
-                        return Err(error);
-                    },
-                };
-                (Some(statement), 0)
-            }
-        };
+            line_vec.push(Line(current_line.clone()));
+            if cfg!(debug_assertions) { println!("[Parser] Finished line:\n{:?}", current_line) }
 
-        if let Some(stat) = parsed
-        {
-            println!("Parsed statement:\n{:?}", stat);
-            output_vec.push(stat);
+            current_line.clear();
+            continue;
         }
 
-        window.move_view(advance);
+        match parse_statement(window)
+        {
+            Ok(stat) => {
+                if cfg!(debug_assertions) { println!("[Parser] Parsed statement: {:?}", stat) }
+                current_line.push(stat);
+            },
+
+            error => {
+                if cfg!(debug_assertions) {
+                    println!("[Parser] Erroring out, line so far:\n{:?}", line_vec);
+                    println!("[Parser] Erroring out, window state:\n{:?}", window.get_window(3).unwrap());
+                }
+                error?;
+            }
+        }
     }
 
-    Ok(output_vec)
+    if current_line.is_empty() == false
+    {
+        line_vec.push(Line(current_line.clone()));
+    }
+
+    Ok(line_vec)
+}
+
+pub fn parse_line(window: &mut VecWindow<Token>) -> Result<Line, StatError>
+{
+    let mut stat_vec: Vec<Stat> = Vec::new();
+    while window.remaining_length() > 0
+    {
+        if let Some(Token::Newline) = window.get_value(0)
+        {
+            window.move_view(1);
+            if cfg!(debug_assertions) { println!("[Parser] Finished line:\n{:?}", stat_vec) }
+            break;
+        }
+
+        match parse_statement(window)
+        {
+            Ok(stat) => {
+                if cfg!(debug_assertions) { println!("[Parser] Parsed statement: {:?}", stat) }
+                stat_vec.push(stat);
+            }
+
+            error => {
+                if cfg!(debug_assertions) {
+                    println!("[Parser] Erroring out, line so far:\n{:?}", stat_vec);
+                    println!("[Parser] Erroring out, window state:\n{:?}", window.get_window(3).unwrap());
+                }
+                error?;
+            }
+        }
+    }
+
+    Ok(Line(stat_vec))
 }
 
 fn parse_statement(window: &mut VecWindow<Token>) -> Result<Stat, StatError>
 {
     let value_tuple = (window.get_value(0), window.get_value(1), window.get_value(2));
-    println!("[Parse Stat] Matching slice: {:?}", value_tuple);
+    if cfg!(debug_assertions) { println!("[Parse Stat] Matching slice: {:?}", value_tuple) }
+
     let statement = match value_tuple
     {
         (Some(Token::Comment(comment)), _, _) => {
@@ -113,17 +151,15 @@ fn parse_statement(window: &mut VecWindow<Token>) -> Result<Stat, StatError>
         _ => Stat::Expression(parse_expression(window)?)
     };
 
-    // Ok(Box::new(Stat::Assignment(Token::Caret, Op::Abs, Box::new(Expr::Value(Token::Caret)))))
     Ok(statement)
 }
 
 fn extend_if(window: &mut VecWindow<Token>) -> Result<Stat, StatError>
 {
-    println!("Parsing if condition...");
     let condition = parse_expression(window)?;
-    println!("Finished if condition");
 
-    println!("Vec head: {:?}", window.get_value(0));
+    if cfg!(debug_assertions) { println!("[Parse If] Condition: {:?}", condition) }
+
     match window.get_value(0)
     {
         Some(Token::Then) => {
@@ -132,7 +168,7 @@ fn extend_if(window: &mut VecWindow<Token>) -> Result<Stat, StatError>
         
         tok => return Err(StatError::new(None,
                         ParseErrorKind::NoExtensionAvailable,
-                        format!("Can't find 'then' to extend if. Found: {:?}", tok).as_ref()))
+                        &format!("Can't find 'then' to extend if. Found: {:?}", tok)))
     }
 
     let mut body: Vec<Stat> = Vec::new();
@@ -193,7 +229,6 @@ fn parse_expression(window: &mut VecWindow<Token>) -> Result<Box<Expr>, ExprErro
 
 fn expr_and(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
 {
-    println!("[expr_and] Matching slice {:?}", (window.get_value(0), window.get_value(1), window.get_value(2)));
     match expr_or(window)
     {
         // The lower rule did match, so attempt to extend
@@ -240,7 +275,6 @@ fn extend_and(left: Expr, window: &mut VecWindow<Token>) -> Result<Expr, ExprErr
 
 fn expr_or(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
 {
-    println!("[expr_or] Matching slice {:?}", (window.get_value(0), window.get_value(1), window.get_value(2)));
     match expr_equality(window)
     {
         // The lower rule did match, so attempt to extend
@@ -287,7 +321,6 @@ fn extend_or(left: Expr, window: &mut VecWindow<Token>) -> Result<Expr, ExprErro
 
 fn expr_equality(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
 {
-    println!("[expr_equality] Matching slice {:?}", (window.get_value(0), window.get_value(1), window.get_value(2)));
     match expr_order(window)
     {
         // The lower rule did match, so attempt to extend
@@ -340,7 +373,6 @@ fn extend_equality(left: Expr, window: &mut VecWindow<Token>) -> Result<Expr, Ex
 
 fn expr_order(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
 {
-    println!("[expr_order] Matching slice {:?}", (window.get_value(0), window.get_value(1), window.get_value(2)));
     match expr_additive(window)
     {
         // The lower rule did match, so attempt to extend
@@ -404,7 +436,6 @@ fn extend_order(left: Expr, window: &mut VecWindow<Token>) -> Result<Expr, ExprE
 
 fn expr_additive(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
 {
-    println!("[expr_additive] Matching slice {:?}", (window.get_value(0), window.get_value(1), window.get_value(2)));
     match expr_multiply(window)
     {
         // The lower rule did match, so attempt to extend
@@ -456,7 +487,6 @@ fn extend_additive(left: Expr, window: &mut VecWindow<Token>) -> Result<Expr, Ex
 
 fn expr_multiply(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
 {
-    println!("[expr_multiply] Matching slice {:?}", (window.get_value(0), window.get_value(1), window.get_value(2)));
     match expr_exponent(window)
     {
         // The lower rule did match, so attempt to extend
@@ -514,7 +544,6 @@ fn extend_multiply(left: Expr, window: &mut VecWindow<Token>) -> Result<Expr, Ex
 // Doesn't use extension idiom due to being right associative
 fn expr_exponent(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
 {
-    println!("[expr_exponent] Matching slice {:?}", (window.get_value(0), window.get_value(1), window.get_value(2)));
     match expr_postfix(window)
     {
         // The lower rule did match, so attempt to extend
@@ -540,7 +569,6 @@ fn expr_exponent(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
 
 fn expr_postfix(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
 {
-    println!("[expr_postfix] Matching slice {:?}", (window.get_value(0), window.get_value(1), window.get_value(2)));
     match expr_keyword(window)
     {
         // The lower rule did match, so attempt to extend to form this rule
@@ -555,9 +583,10 @@ fn expr_postfix(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
 
 fn extend_postfix(expr: Expr, window: &mut VecWindow<Token>) -> Expr
 {
-    match window.get_value(0)
+    match (window.get_value(0), window.get_value(1))
     {
-        Some(Token::Exclam) => {
+        (Some(Token::Exclam), Some(Token::Equal)) => expr,
+        (Some(Token::Exclam), _) => {
             window.move_view(1);
             extend_postfix(Expr::UnaryOp(Op::Fact, Box::new(expr)), window)
         }
@@ -567,7 +596,6 @@ fn extend_postfix(expr: Expr, window: &mut VecWindow<Token>) -> Expr
 
 fn expr_keyword(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
 {
-    println!("[expr_keyword] Matching slice {:?}", (window.get_value(0), window.get_value(1), window.get_value(2)));
     match expr_neg(window)
     {
         // The rule below simply didn't match onto the window, so now it's our turn
@@ -647,7 +675,6 @@ fn expr_keyword(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
 
 fn expr_neg(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
 {
-    println!("[expr_neg] Matching slice {:?}", (window.get_value(0), window.get_value(1), window.get_value(2)));
     match expr_ident(window)
     {
         // The rule below simply didn't match onto the window, so now it's our turn
@@ -682,7 +709,6 @@ fn expr_neg(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
 fn expr_ident(window: &mut VecWindow<Token>) -> Result<Expr, ExprError>
 {
     let value_tuple = (window.get_value(0), window.get_value(1), window.get_value(2));
-    println!("[expr_ident] Matching slice {:?}", value_tuple);   
     let expr = match value_tuple
     {
         // Postfix inc/dec operator parsing
@@ -729,16 +755,13 @@ fn parse_value(window: &mut VecWindow<Token>) -> Result<Value, ExprError>
         Some(tok @ Token::YololNum(_)) |
         Some(tok @ Token::Identifier(_)) => {
             let tok = tok.clone();
-            println!("Parsing value {:?}", tok);
             window.move_view(1);
-            println!("Window after value parse: {:?}", (window.get_value(0), window.get_value(1), window.get_value(2)));
 
             Ok(Value::from(tok))
         },
 
         Some(Token::LParen) => {
             window.move_view(1);
-            println!("Saw LParen, starting group parsing...");
             let output = parse_expression(window)?;
 
             match window.get_value(0)

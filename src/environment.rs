@@ -1,30 +1,40 @@
 use std::fmt;
 use std::collections::HashMap;
 
+use serde::{Serialize, Deserialize};
+
 use crate::types::LiteralValue;
 use crate::types::YololNumber;
 
-#[derive(Debug, Clone)]
-pub struct Environment<'a>
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Environment
 {
-    pub name: &'a str,
+    pub name: String,
     pub next_line: i64,
-    pub context: HashMap<String, LiteralValue>,
+    pub error: String,
+
+    local_context: HashMap<String, LiteralValue>,
+    global_context: HashMap<String, LiteralValue>
 }
 
-impl<'a> Environment<'a>
+impl Environment
 {
-    pub fn new(name: &'a str) -> Environment
+    pub fn new(name: &str) -> Environment
     {
+        let name = String::from(name);
+
         // We start at the first line on a chip
         let next_line = 1;
 
-        let context = HashMap::new();
+        let local_context = HashMap::new();
+        let global_context = HashMap::new();
 
         Environment {
             name,
             next_line,
-            context,
+            error: String::new(),
+            local_context,
+            global_context,
         }
     }
 
@@ -34,14 +44,22 @@ impl<'a> Environment<'a>
     }
 }
 
-impl fmt::Display for Environment<'_>
+impl fmt::Display for Environment
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
         let mut out_string = format!("Name: {}, next line: {}.\n", self.name, self.next_line);
 
-        out_string += "Context:\n";
-        for (key, value) in self.context.iter()
+        out_string += "\n";
+        out_string += "Local context:\n";
+        for (key, value) in self.local_context.iter()
+        {
+            out_string += format!("Key: '{}', Value: '{}'\n", key, value).as_str();
+        }
+
+        out_string += "\n";
+        out_string += "Global context:\n";
+        for (key, value) in self.global_context.iter()
         {
             out_string += format!("Key: '{}', Value: '{}'\n", key, value).as_str();
         }
@@ -53,20 +71,38 @@ impl fmt::Display for Environment<'_>
 pub trait ContextMap
 {
     fn get_val(&self, ident: &str) -> LiteralValue;
-    // fn get_zero(&self) -> LiteralValue;
+    fn set_val(&mut self, ident: String, value: LiteralValue);
 }
 
-impl ContextMap for HashMap<String, LiteralValue>
+impl ContextMap for Environment
 {
     fn get_val(&self, ident: &str) -> LiteralValue
     {
-        self.get(ident)
-            .unwrap_or(&LiteralValue::get_false())
-            .clone()
+        // Means the ident is referencing a data field, aka the global context
+        if let Some(':') = ident.chars().next()
+        {
+            self.global_context.get(ident)
+                .unwrap_or(&LiteralValue::get_false())
+                .clone()
+        }
+        else
+        {
+            self.local_context.get(ident)
+                .unwrap_or(&LiteralValue::get_false())
+                .clone()
+        }
     }
 
-    // fn get_zero(&self) -> LiteralValue
-    // {
-    //     LiteralValue::get_false()
-    // }
+    fn set_val(&mut self, ident: String, value: LiteralValue)
+    {
+         // Means the ident is referencing a data field, aka the global context
+        if let Some(':') = ident.chars().next()
+        {
+            self.global_context.insert(ident, value);
+        }
+        else
+        {
+            self.local_context.insert(ident, value);
+        }
+    }
 }

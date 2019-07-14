@@ -1,0 +1,2 @@
+a=5 b=3 c=0
+if a%2!=b%2 then c+1 end c*2 a/=2 b/=2 if a+b>0 then goto 2 end

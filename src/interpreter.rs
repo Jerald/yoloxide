@@ -2,6 +2,8 @@ use crate::types::Value;
 use crate::types::Statement as Stat;
 use crate::types::Expression as Expr;
 
+use crate::types::Line;
+
 use crate::types::Operator as Op;
 
 use crate::types::EvaluationError;
@@ -11,6 +13,16 @@ use crate::types::LiteralValue;
 
 use crate::environment::Environment as Env;
 use crate::environment::ContextMap;
+
+pub fn evaluate_line(env: &mut Env, input: &Line) -> Result<(), EvaluationError>
+{
+    for statement in &input.0
+    {
+        evaluate_statement(env, statement.clone())?;
+    }
+
+    Ok(())
+}
 
 pub fn evaluate_statement(env: &mut Env, input: Stat) -> Result<(), EvaluationError>
 {
@@ -86,7 +98,7 @@ fn evaluate_assignment(env: &mut Env, ident: Value, op: Op, expr: Box<Expr>) -> 
         })
     };
 
-    let current_value = env.context.get_val(&ident_string);
+    let current_value = env.get_val(&ident_string);
 
     let new_value = if let Op::Assign = op
     {
@@ -113,7 +125,7 @@ fn evaluate_assignment(env: &mut Env, ident: Value, op: Op, expr: Box<Expr>) -> 
         val?
     };
 
-    env.context.insert(ident_string, new_value);
+    env.set_val(ident_string, new_value);
     Ok(())
 }
 
@@ -194,25 +206,25 @@ fn evaluate_unary_op(env: &mut Env, op: Op, target: Box<Expr>) -> Result<Literal
         match op
         {
             Op::PreInc => {
-                let new_value = (env.context.get_val(&ident) + LiteralValue::from(1))?;
-                env.context.insert(ident, new_value.clone());
+                let new_value = (env.get_val(&ident) + LiteralValue::from(1))?;
+                env.set_val(ident, new_value.clone());
                 Ok(new_value)
             },
             Op::PostInc => {
-                let original_value = env.context.get_val(&ident);
+                let original_value = env.get_val(&ident);
                 let new_value = original_value.clone() + LiteralValue::from(1);
-                env.context.insert(ident, new_value?);
+                env.set_val(ident, new_value?);
                 Ok(original_value)
             },
             Op::PreDec => {
-                let new_value = (env.context.get_val(&ident) - LiteralValue::from(1))?;
-                env.context.insert(ident, new_value.clone());
+                let new_value = (env.get_val(&ident) - LiteralValue::from(1))?;
+                env.set_val(ident, new_value.clone());
                 Ok(new_value)
             },
             Op::PostDec => {
-                let original_value = env.context.get_val(&ident);
+                let original_value = env.get_val(&ident);
                 let new_value = original_value.clone() - LiteralValue::from(1);
-                env.context.insert(ident, new_value?);
+                env.set_val(ident, new_value?);
                 Ok(original_value)
             },
 
@@ -274,8 +286,8 @@ fn evaluate_value(env: &mut Env, input: Value) -> Result<LiteralValue, Evaluatio
     let output = match input
     {
         Value::Group(expr) => evaluate_expression(env, expr)?,
-        Value::LocalVar(ident) => env.context.get_val(&ident),
-        Value::DataField(ident) => env.context.get_val(&ident),
+        Value::LocalVar(ident) => env.get_val(&ident),
+        Value::DataField(ident) => env.get_val(&ident),
         Value::NumberVal(number) => LiteralValue::NumberVal(number),
         Value::StringVal(string) => LiteralValue::StringVal(string),
     };

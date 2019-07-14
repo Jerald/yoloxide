@@ -6,7 +6,7 @@ use crate::types::YololNumber;
 
 use std::convert::TryInto;
 
-pub fn tokenize(input: String, debug_info: bool) -> Result<Vec<Token>, String>
+pub fn tokenize(input: String) -> Result<Vec<Token>, String>
 {
     let mut output_vec: Vec<Token> = Vec::new();
     let input_chars: Vec<char> = input.chars().collect();
@@ -15,55 +15,55 @@ pub fn tokenize(input: String, debug_info: bool) -> Result<Vec<Token>, String>
 
     while window.remaining_length() > 0
     {
-        let value_tuple = (window.get_value(0), window.get_value(1), window.get_value(2));
-        if debug_info { println!("Matching slice: {:?}", value_tuple); }
+        let value_tuple = (window.get_value(0), window.get_value(1));
+        if cfg!(debug_assertions) { println!("[Tokenize] Matching slice: {:?}", value_tuple) }
 
         let (token, advance) = match value_tuple
         {
             // Comment. Everything from '//' to the end of the line
-            (Some('/'), Some('/'), _)           => (extend_comment(&mut window), 0),
+            (Some('/'), Some('/'))          => (extend_comment(&mut window), 0),
 
             // Identifier. Starts with an alpha, then can be alphanum
-            (Some('_'), _, _) |
-            (Some('a'..='z'), _, _) |
-            (Some('A'..='Z'), _, _)             => (extend_alphanum(&mut window), 0),
+            (Some('_'), _) |
+            (Some('a'..='z'), _) |
+            (Some('A'..='Z'), _)            => (extend_alphanum(&mut window), 0),
 
             // DataField. Starts with a colon then is all alphanums
-            (Some(':'), Some('_'), _) |
-            (Some(':'), Some('0'..='9'), _) |
-            (Some(':'), Some('a'..='z'), _) |
-            (Some(':'), Some('A'..='Z'), _)     => (extend_datafield(&mut window), 0),
+            (Some(':'), Some('_')) |
+            (Some(':'), Some('0'..='9')) |
+            (Some(':'), Some('a'..='z')) |
+            (Some(':'), Some('A'..='Z'))    => (extend_datafield(&mut window), 0),
 
             // String. Starts with a quote then extends all normal ascii chars until another quote
-            (Some('"'), Some(' '..='~'), _)     => (extend_string(&mut window), 0),
+            (Some('"'), Some(' '..='~'))    => (extend_string(&mut window), 0),
 
             // YololNumber. Starts with a number extends through all other numbers
             // Will match on periods so it can represent the YololNumber decimals
-            (Some('0'..='9'), _, _)             => (extend_yololnum(&mut window), 0),
+            (Some('0'..='9'), _)            => (extend_yololnum(&mut window), 0),
             
             // Newline. Matches on CRLF or LF
-            (Some('\r'), Some('\n'), _ ) => (Some(Token::Newline), 2),
-            (Some('\n'), _, _) => (Some(Token::Newline), 1),
+            (Some('\r'), Some('\n'))        => (Some(Token::Newline), 2),
+            (Some('\n'), _)                 => (Some(Token::Newline), 1),
 
             // Special chars. Matches on each relevant special char
-            (Some('='), _, _)  => (Some(Token::Equal), 1),
-            (Some('+'), _, _)  => (Some(Token::Plus), 1),
-            (Some('-'), _, _)  => (Some(Token::Minus), 1),
-            (Some('*'), _, _)  => (Some(Token::Star), 1),
-            (Some('/'), _, _)  => (Some(Token::Slash), 1),
-            (Some('('), _, _)  => (Some(Token::LParen), 1),
-            (Some(')'), _, _)  => (Some(Token::RParen), 1),
-            (Some('<'), _, _)  => (Some(Token::LAngleBrak), 1),
-            (Some('>'), _, _)  => (Some(Token::RAngleBrak), 1),
-            (Some('!'), _, _)  => (Some(Token::Exclam), 1),
-            (Some('^'), _, _)  => (Some(Token::Caret), 1),
-            (Some('%'), _, _)  => (Some(Token::Percent), 1),
+            (Some('='), _)                  => (Some(Token::Equal), 1),
+            (Some('+'), _)                  => (Some(Token::Plus), 1),
+            (Some('-'), _)                  => (Some(Token::Minus), 1),
+            (Some('*'), _)                  => (Some(Token::Star), 1),
+            (Some('/'), _)                  => (Some(Token::Slash), 1),
+            (Some('('), _)                  => (Some(Token::LParen), 1),
+            (Some(')'), _)                  => (Some(Token::RParen), 1),
+            (Some('<'), _)                  => (Some(Token::LAngleBrak), 1),
+            (Some('>'), _)                  => (Some(Token::RAngleBrak), 1),
+            (Some('!'), _)                  => (Some(Token::Exclam), 1),
+            (Some('^'), _)                  => (Some(Token::Caret), 1),
+            (Some('%'), _)                  => (Some(Token::Percent), 1),
 
             // Ignores spaces because they don't matter
-            (Some(' '), _, _) => (None, 1),
+            (Some(' '), _) => (None, 1),
 
             // Matches on anything else. Returns an error and prints the window that failed matching
-            c => { println!("Error on: {:?}", c); return Err(String::from("Bad things happening!")); }
+            c => return Err(format!("[Tokenize] Failure to match on {:?}", c))
         };
 
         if let Some(tok) = token
@@ -86,10 +86,13 @@ fn extend_comment(window: &mut VecWindow<char>) -> Option<Token>
 
     while window.remaining_length() > 0
     {
-        match window.get_value(0)
+        match (window.get_value(0), window.get_value(1))
         {
-            Some('\n') => break,
-            Some(&c) => char_vec.push(c),
+            (Some('\r'), Some('\n')) |
+            (Some('\n'), _) => break,
+
+            (Some(&c), _) => char_vec.push(c),
+
             _ => break
         };
 
