@@ -1,9 +1,6 @@
 use std::env;
 use std::fs;
 
-use serde::{Serialize, Deserialize};
-use serde_json::Result;
-
 use yoloxide::environment::Environment;
 
 use yoloxide::tokenizer;

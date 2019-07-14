@@ -9,14 +9,14 @@ pub mod wasm_lib;
 
 use environment::Environment;
 
-pub fn execute_line(mut env: Environment, line: String) -> Environment
+pub fn execute_line(env: &mut Environment, line: String)
 {
     let tokens = match tokenizer::tokenize(line)
     {
         Ok(tokens) => tokens,
         Err(error) => {
             env.error = error.to_string();
-            return env;
+            return;
         }
     };
 
@@ -26,15 +26,13 @@ pub fn execute_line(mut env: Environment, line: String) -> Environment
         Ok(line) => line,
         Err(error) => {
             env.error = error.to_string();
-            return env;
+            return;
         }
     };
 
-    if let Err(error) = interpreter::evaluate_line(&mut env, &line)
+    if let Err(error) = interpreter::evaluate_line(env, &line)
     {
         env.error = error.to_string();
-        return env;
+        return;
     }
-
-    env
 }
