@@ -1,2 +1,4 @@
 (a + b) * c
 a * (b + c)
+
+if 1 then goto 1 end

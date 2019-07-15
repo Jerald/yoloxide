@@ -16,10 +16,25 @@ use crate::environment::ContextMap;
 
 pub fn evaluate_line(env: &mut Env, input: &Line) -> Result<(), EvaluationError>
 {
+    env.next_line += 1;
+
+    if env.next_line > 20
+    {
+        env.next_line = 1;
+    }
+
     for statement in &input.0
     {
-        evaluate_statement(env, statement.clone())?;
+        match evaluate_statement(env, statement.clone())
+        {
+            Err(EvaluationError { kind: EvaluationErrorKind::HitGoto, .. }) => {
+                break;
+            },
+            other => other?
+        }
     }
+
+
 
     Ok(())
 }
@@ -33,7 +48,7 @@ pub fn evaluate_statement(env: &mut Env, input: Stat) -> Result<(), EvaluationEr
         Stat::Goto(target) => evaluate_goto(env, target)?,
         Stat::Assignment(ident, op, expr) => evaluate_assignment(env, ident, op, expr)?,
         Stat::Expression(expr) => { evaluate_expression(env, expr)?; },
-    };
+    }
 
     Ok(())
 }
@@ -82,7 +97,10 @@ fn evaluate_goto(env: &mut Env, target: Box<Expr>) -> Result<(), EvaluationError
         }
     }
 
-    Ok(())
+    Err(EvaluationError {
+        kind: EvaluationErrorKind::HitGoto,
+        error_text: String::from("Hit a goto!")
+    })
 }
 
 fn evaluate_assignment(env: &mut Env, ident: Value, op: Op, expr: Box<Expr>) -> Result<(), EvaluationError>

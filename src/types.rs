@@ -37,6 +37,7 @@ pub enum EvaluationErrorKind
 {
     OperatorError,
     NonExhaustivePattern,
+    HitGoto,
     Misc
 }
 
