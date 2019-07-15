@@ -1,6 +1,6 @@
 [package]
 name = "yoloxide"
-version = "0.1.3"
+version = "0.2.0"
 authors = ["Oscar <osmithsi@sfu.ca>"]
 edition = "2018"
 
