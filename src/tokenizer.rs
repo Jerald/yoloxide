@@ -241,8 +241,6 @@ fn extend_yololnum(window: &mut VecWindow<char>) -> Option<Token>
 
     let left_num: i64 = left_string.parse::<i64>().unwrap();
 
-    // println!("right string len: {}", right_string.len());
-
     let right_num: i64 = if right_string.is_empty()
     {
         0
@@ -257,8 +255,6 @@ fn extend_yololnum(window: &mut VecWindow<char>) -> Option<Token>
         let shift: i64 = (10i64).pow(4 - right_string_len);
         right_string[0..right_string.len()].parse::<i64>().unwrap() * shift
     };
-
-    // println!("Left num: {}, right num: {}, left string: {}, right string: {}", left_num, right_num, left_string, right_string);
 
     let yolol_num = YololNumber::from_split(left_num, right_num);
     Some(Token::YololNum(yolol_num))
