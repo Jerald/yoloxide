@@ -16,6 +16,7 @@ pub fn execute_line(env: &mut Environment, line: String)
         Ok(tokens) => tokens,
         Err(error) => {
             env.error = error.to_string();
+            env.next_line += 1;
             return;
         }
     };
@@ -26,6 +27,7 @@ pub fn execute_line(env: &mut Environment, line: String)
         Ok(line) => line,
         Err(error) => {
             env.error = error.to_string();
+            env.next_line += 1;
             return;
         }
     };
