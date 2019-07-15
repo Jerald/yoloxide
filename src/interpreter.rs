@@ -5,6 +5,7 @@ use crate::types::Expression as Expr;
 use crate::types::Line;
 
 use crate::types::Operator as Op;
+use crate::types::OperatorError;
 
 use crate::types::EvaluationError;
 use crate::types::EvaluationErrorKind;
@@ -224,25 +225,72 @@ fn evaluate_unary_op(env: &mut Env, op: Op, target: Box<Expr>) -> Result<Literal
         match op
         {
             Op::PreInc => {
-                let new_value = (env.get_val(&ident) + LiteralValue::from(1))?;
+                let new_value = match env.get_val(&ident)
+                {
+                    num @ LiteralValue::NumberVal(_) => num + LiteralValue::from(1),
+                    string @ LiteralValue::StringVal(_) => string + LiteralValue::from(" ")
+                }?;
+
                 env.set_val(ident, new_value.clone());
                 Ok(new_value)
             },
             Op::PostInc => {
                 let original_value = env.get_val(&ident);
-                let new_value = original_value.clone() + LiteralValue::from(1);
+                let new_value = match original_value.clone()
+                {
+                    num @ LiteralValue::NumberVal(_) => num + LiteralValue::from(1),
+                    string @ LiteralValue::StringVal(_) => string + LiteralValue::from(" ")
+                };
+
                 env.set_val(ident, new_value?);
                 Ok(original_value)
             },
             Op::PreDec => {
-                let new_value = (env.get_val(&ident) - LiteralValue::from(1))?;
+                let new_value = match env.get_val(&ident)
+                {
+                    num @ LiteralValue::NumberVal(_) => num - LiteralValue::from(1),
+                    LiteralValue::StringVal(mut string) => {
+                        if string.pop().is_none()
+                        {
+                            Err(OperatorError {
+                                op: Op::PreDec,
+                                left: Some(LiteralValue::StringVal(string)),
+                                right: None,
+                                error_text: String::from("Tried to use pre-dec on an empty string!")
+                            })
+                        }
+                        else
+                        {
+                            Ok(LiteralValue::StringVal(string))
+                        }
+                    }
+                }?;
                 env.set_val(ident, new_value.clone());
                 Ok(new_value)
             },
             Op::PostDec => {
                 let original_value = env.get_val(&ident);
-                let new_value = original_value.clone() - LiteralValue::from(1);
-                env.set_val(ident, new_value?);
+                let new_value = match original_value.clone()
+                {
+                    num @ LiteralValue::NumberVal(_) => num - LiteralValue::from(1),
+                    LiteralValue::StringVal(mut string) => {
+                        if string.pop().is_none()
+                        {
+                            Err(OperatorError {
+                                op: Op::PreDec,
+                                left: Some(LiteralValue::StringVal(string)),
+                                right: None,
+                                error_text: String::from("Tried to use pre-dec on an empty string!")
+                            })
+                        }
+                        else
+                        {
+                            Ok(LiteralValue::StringVal(string))
+                        }
+                    }
+                }?;
+
+                env.set_val(ident, new_value);
                 Ok(original_value)
             },
 

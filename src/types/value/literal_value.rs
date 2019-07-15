@@ -258,6 +258,14 @@ impl From<i64> for LiteralValue
     }
 }
 
+impl From<&str> for LiteralValue
+{
+    fn from(input: &str) -> LiteralValue
+    {
+        LiteralValue::StringVal(String::from(input))
+    }
+}
+
 impl PartialEq for LiteralValue
 {
     fn eq(&self, other: &Self) -> bool
