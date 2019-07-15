@@ -250,7 +250,7 @@ impl ops::Div for YololNumber
     type Output = Self;
     fn div(self, other: Self) -> Self
     {
-        let output = (self.0 / other.0) * CONVERSION_CONST;
+        let output = (self.0 * CONVERSION_CONST) / other.0;
         YololNumber::new(output)
     }
 }
