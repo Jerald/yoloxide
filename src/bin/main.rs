@@ -19,12 +19,12 @@ fn main()
     println!("Original code:");
     println!("{}", yolol_code);
 
-    let tokens = tokenizer::tokenize(yolol_code).unwrap();
+    let tokens = tokenizer::tokenize(yolol_code).expect("Tokenizer failure!");
     println!("Tokens:");
     println!("{:?}", tokens);
 
     let mut token_window = VecWindow::new(&tokens, 0);
-    let lines = parser::parse_program(&mut token_window).unwrap();
+    let lines = parser::parse_program(&mut token_window).expect("Parser failure!");
     
     println!("AST:");
     for line in &lines
