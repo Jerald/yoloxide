@@ -1,3 +1,6 @@
+// Required for doing saturating_neg and saturating_abs for YololNumber's
+#![feature(saturating_neg)]
+
 pub mod types;
 pub mod environment;
 

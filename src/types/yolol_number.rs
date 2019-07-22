@@ -48,19 +48,19 @@ impl YololNumber
         // We get the value in the first decimal place
         let first_decimal = self.0 % CONVERSION_CONST;
         // Then we find out how far it is from 10
-        let adjustment = CONVERSION_CONST - first_decimal;
+        let adjustment = CONVERSION_CONST.saturating_sub(first_decimal);
 
         // Then by adding that adjustment, we bring us to the next whole value
-        YololNumber::new(self.0 + adjustment)
+        YololNumber::new(self.0.saturating_add(adjustment))
     }
 
     pub fn clamp(self, min: InnerType, max: InnerType) -> YololNumber
     {
-        if self.0 < min * CONVERSION_CONST
+        if self.0 < min.saturating_mul(CONVERSION_CONST)
         {
             YololNumber::from(min)
         }
-        else if self.0 > max * CONVERSION_CONST
+        else if self.0 > max.saturating_mul(CONVERSION_CONST)
         {
             YololNumber::from(max)
         }
@@ -77,13 +77,25 @@ impl YololNumber
 
         let pow = float_self.powf(float_other);
 
-        let new_inner = (pow as i64).saturating_mul(CONVERSION_CONST);
+        // If our float pow overflowed, we need to map the value back to i64 space
+        let int_pow = if pow.is_infinite()
+        {
+            // This will map the sign of infinity to the correct i64 sign
+            std::i64::MAX.saturating_mul(pow.signum() as i64)
+        }
+        else
+        {
+            // If it didn't overflow we can just directly cast it back
+            pow as i64
+        };
+
+        let new_inner = int_pow.saturating_mul(CONVERSION_CONST);
         YololNumber::new(new_inner)
     }
 
     pub fn abs(self) -> YololNumber
     {
-        YololNumber::new(self.0.abs())
+        YololNumber::new(self.0.saturating_abs())
     }
 
     pub fn sqrt(self) -> YololNumber
@@ -246,7 +258,7 @@ impl ops::Add for YololNumber
     type Output =  Self;
     fn add(self, other: Self) -> Self
     {
-        YololNumber::new(self.0 + other.0)
+        YololNumber::new(self.0.saturating_add(other.0))
     }
 }
 
@@ -255,26 +267,34 @@ impl ops::Sub for YololNumber
     type Output = Self;
     fn sub(self, other: Self) -> Self
     {
-        YololNumber::new(self.0 - other.0)
+        YololNumber::new(self.0.saturating_sub(other.0))
     }
 }
 
+#[allow(clippy::suspicious_arithmetic_impl)]
 impl ops::Mul for YololNumber
 {
     type Output = Self;
     fn mul(self, other: Self) -> Self
     {
-        let output = (self.0 * other.0) / CONVERSION_CONST;
+        let output_sign = self.0.signum() * other.0.signum();
+        let output = match self.0.checked_mul(other.0)
+        {
+            Some(num) => num / CONVERSION_CONST,
+            None => if output_sign == -1 { std::i64::MIN } else { std::i64::MAX }
+        };
+
         YololNumber::new(output)
     }
 }
 
+#[allow(clippy::suspicious_arithmetic_impl)]
 impl ops::Div for YololNumber
 {
     type Output = Self;
     fn div(self, other: Self) -> Self
     {
-        let output = (self.0 * CONVERSION_CONST) / other.0;
+        let output = (self.0 * CONVERSION_CONST).checked_div(other.0).unwrap_or(0);
         YololNumber::new(output)
     }
 }
@@ -284,7 +304,7 @@ impl ops::Rem for YololNumber
     type Output = Self;
     fn rem(self, other: Self) -> Self
     {
-        YololNumber::new(self.0 % other.0)
+        YololNumber::new(self.0.checked_rem(other.0).unwrap_or(0))
     }
 }
 
@@ -311,7 +331,7 @@ impl std::ops::Neg for YololNumber
     type Output = YololNumber;
     fn neg(self) -> YololNumber
     {
-        YololNumber::new(-self.0)
+        YololNumber::new(self.0.saturating_neg())
     }
 }
 
