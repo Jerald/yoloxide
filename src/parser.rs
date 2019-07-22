@@ -175,6 +175,7 @@ fn extend_if(window: &mut VecWindow<Token>) -> Result<Stat, StatError>
     let mut body: Vec<Stat> = Vec::new();
     let mut else_body: Vec<Stat> = Vec::new();
     let mut parsing_else = false;
+    let mut hit_end = false;
 
     while window.remaining_length() > 0
     {
@@ -195,6 +196,7 @@ fn extend_if(window: &mut VecWindow<Token>) -> Result<Stat, StatError>
             },
             (Some(Token::End), _) => {
                 window.move_view(1);
+                hit_end = true;
                 break
             },
 
@@ -211,6 +213,7 @@ fn extend_if(window: &mut VecWindow<Token>) -> Result<Stat, StatError>
         }
     }
 
+
     let final_else = if else_body.is_empty() == false
     {
         Some(else_body)
@@ -220,7 +223,14 @@ fn extend_if(window: &mut VecWindow<Token>) -> Result<Stat, StatError>
         None
     };
 
-    Ok(Stat::If(condition, body, final_else))
+    let out_stat = Stat::If(condition, body, final_else);
+
+    if hit_end == false
+    {
+        return Err(StatError::new(Some(out_stat), ParseErrorKind::NoExtensionAvailable, "Didn't hit end while parsing if statement!"));
+    }
+
+    Ok(out_stat)
 }
 
 fn parse_expression(window: &mut VecWindow<Token>) -> Result<Box<Expr>, ExprError>
