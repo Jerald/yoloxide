@@ -19,3 +19,16 @@ impl fmt::Display for Line
     }
 }
 
+// impl fmt::Display for Vec<Line>
+// {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+//     {
+//         let mut output = String::from("");
+//         for line in self
+//         {
+//             output += &format!("{}\n", &line);
+//         }
+
+//         write!(f, "{}", output)
+//     }
+// }

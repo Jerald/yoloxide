@@ -1,4 +1,8 @@
-(a + b) * c
-a * (b + c)
+x = 45 / 10
 
-if 1 then goto 1 end
+x = -4.4 % 1
+y = 4.4 % -1
+
+test = "hello"
+test++
+test += "world"

@@ -175,11 +175,35 @@ impl std::fmt::Display for YololNumber
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result
     {
         let main_digits: InnerType = self.into();
-        let ones = self.0%10;
-        let tens = (self.0/10)%10;
-        let hundreds = (self.0/100)%10;
-        let thousands = (self.0/1000)%10;
-        write!(f, "{}.{}{}{}{}", main_digits, thousands, hundreds, tens, ones)
+        let sign = self.0.signum();
+
+        let ones = (self.0 % 10) * sign;
+        let tens = ((self.0/10) % 10) * sign;
+        let hundreds = ((self.0/100) % 10) * sign;
+        let thousands = ((self.0/1000) % 10) * sign;
+
+        let format = if ones != 0
+        {
+            format!("{}.{}{}{}{}", main_digits, thousands, hundreds, tens, ones)
+        }
+        else if tens != 0
+        {
+            format!("{}.{}{}{}", main_digits, thousands, hundreds, tens)
+        }
+        else if hundreds != 0
+        {
+            format!("{}.{}{}", main_digits, thousands, hundreds)
+        }
+        else if thousands != 0
+        {
+            format!("{}.{}", main_digits, thousands)
+        }
+        else
+        {
+            format!("{}", main_digits)
+        };
+
+        write!(f, "{}", format)
     }
 }
 
