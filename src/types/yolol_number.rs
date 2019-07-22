@@ -78,7 +78,7 @@ impl YololNumber
         let pow = float_self.powf(float_other);
 
         // If our float pow overflowed, we need to map the value back to i64 space
-        let int_pow = if pow.is_infinite()
+        let int_pow = if pow.abs() > (std::i64::MAX as f64)
         {
             // This will map the sign of infinity to the correct i64 sign
             std::i64::MAX.saturating_mul(pow.signum() as i64)
