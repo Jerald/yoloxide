@@ -43,7 +43,7 @@ pub fn parse_program(window: &mut VecWindow<Token>) -> Result<Vec<Line>, StatErr
             error => {
                 if cfg!(debug_assertions) {
                     println!("[Parser] Erroring out, line so far:\n{:?}", line_vec);
-                    println!("[Parser] Erroring out, window state:\n{:?}", window.get_window(3).unwrap());
+                    println!("[Parser] Erroring out, window state:\n{:?}", window.get_window(3));
                 }
                 error?;
             }
@@ -80,7 +80,7 @@ pub fn parse_line(window: &mut VecWindow<Token>) -> Result<Line, StatError>
             error => {
                 if cfg!(debug_assertions) {
                     println!("[Parser] Erroring out, line so far:\n{:?}", stat_vec);
-                    println!("[Parser] Erroring out, window state:\n{:?}", window.get_window(3).unwrap());
+                    println!("[Parser] Erroring out, window state:\n{:?}", window.get_window(3));
                 }
                 error?;
             }
