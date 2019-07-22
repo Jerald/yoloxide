@@ -1,13 +1,13 @@
 use std::ops;
 use std::cmp;
 
-use serde::{Serialize, Deserialize};
+use serde::{Serialize, Deserialize, Serializer};
 
 const CONVERSION_CONST: i64 = 10000;
 
 type InnerType = i64;
 
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy, Deserialize)]
 pub struct YololNumber(InnerType);
 
 impl YololNumber
@@ -32,7 +32,7 @@ impl YololNumber
         num / CONVERSION_CONST
     }
 
-    pub fn is_negative(&self) -> bool
+    pub fn is_negative(self) -> bool
     {
         self.0.is_negative()
     }
@@ -322,11 +322,19 @@ impl std::ops::Not for YololNumber
     {
         if self.0 == 0
         {
-            YololNumber::new(0)
+            YololNumber::new(1 * CONVERSION_CONST)
         }
         else
         {
-            YololNumber::new(1 * CONVERSION_CONST)
+            YololNumber::new(0)
         }
+    }
+}
+
+impl Serialize for YololNumber
+{
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    {
+        serializer.serialize_str(&self.to_string())
     }
 }
