@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::Statement;
+use crate::types::ast::statement::Statement;
 
 #[derive(Debug, Clone)]
 pub struct Line(pub Vec<Statement>);

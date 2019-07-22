@@ -1,9 +1,10 @@
 use std::fmt;
 
-use super::Value;
-use super::Expression;
-
-use super::Operator;
+use crate::types::ast::{
+    expression::Expression,
+    operators::Operator,
+    value::Value,
+};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement

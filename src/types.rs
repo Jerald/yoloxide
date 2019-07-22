@@ -1,6 +1,8 @@
 use std::fmt;
 use std::error;
 
+pub mod ast;
+
 mod sliding_window;
 pub use sliding_window::*;
 
@@ -10,20 +12,20 @@ pub use yolol_number::*;
 mod token;
 pub use token::*;
 
-mod operators;
-pub use operators::*;
+// mod operators;
+// pub use operators::*;
 
-mod value;
-pub use value::*;
+// mod value;
+// pub use value::*;
 
-mod expression;
-pub use expression::*;
+// mod expression;
+// pub use expression::*;
 
-mod statement;
-pub use statement::*;
+// mod statement;
+// pub use statement::*;
 
-mod line;
-pub use line::*;
+// mod line;
+// pub use line::*;
 
 #[derive(Debug, Clone)]
 pub struct EvaluationError
@@ -57,9 +59,9 @@ impl fmt::Display for EvaluationError
     }
 }
 
-impl From<OperatorError> for EvaluationError
+impl From<ast::operators::OperatorError> for EvaluationError
 {
-    fn from(input: OperatorError) -> EvaluationError
+    fn from(input: ast::operators::OperatorError) -> EvaluationError
     {
         EvaluationError {
             kind: EvaluationErrorKind::OperatorError,
@@ -82,14 +84,14 @@ pub enum ParseErrorKind
 #[derive(Debug, Clone)]
 pub struct ExprError
 {
-    pub input_expr: Option<Expression>,
+    pub input_expr: Option<ast::expression::Expression>,
     pub kind: ParseErrorKind,
     pub error_text: String,
 }
 
 impl ExprError
 {
-    pub fn new(expr: Option<Expression>, kind: ParseErrorKind, error_text: &str) -> ExprError
+    pub fn new(expr: Option<ast::expression::Expression>, kind: ParseErrorKind, error_text: &str) -> ExprError
     {
         ExprError {
             input_expr: expr,
@@ -118,14 +120,14 @@ impl error::Error for ExprError
 #[derive(Debug, Clone)]
 pub struct StatError
 {
-    pub input_stat: Option<Statement>,
+    pub input_stat: Option<ast::statement::Statement>,
     pub kind: ParseErrorKind,
     pub error_text: String,
 }
 
 impl StatError
 {
-    pub fn new(stat: Option<Statement>, kind: ParseErrorKind, error_text: &str) -> StatError
+    pub fn new(stat: Option<ast::statement::Statement>, kind: ParseErrorKind, error_text: &str) -> StatError
     {
         StatError {
             input_stat: stat,
@@ -162,7 +164,7 @@ impl std::convert::From<ExprError> for StatError
 
         let stat = match input_expr
         {
-            Some(expr) => Some(Statement::Expression(Box::new(expr))),
+            Some(expr) => Some(ast::statement::Statement::Expression(Box::new(expr))),
             None => None
         };
 

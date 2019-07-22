@@ -1,16 +1,16 @@
-use crate::types::Value;
-use crate::types::Statement as Stat;
-use crate::types::Expression as Expr;
 
-use crate::types::Line;
-
-use crate::types::Operator as Op;
-use crate::types::OperatorError;
+use crate::types::ast::{
+    statement::Statement as Stat,
+    expression::Expression as Expr,
+    operators::Operator as Op,
+    operators::OperatorError,
+    value::Value,
+    value::LiteralValue,
+    line::Line
+};
 
 use crate::types::EvaluationError;
 use crate::types::EvaluationErrorKind;
-
-use crate::types::LiteralValue;
 
 use crate::environment::Environment as Env;
 use crate::environment::ContextMap;

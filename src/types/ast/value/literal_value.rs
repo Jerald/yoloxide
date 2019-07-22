@@ -4,10 +4,10 @@ use std::cmp;
 
 use serde::{Serialize, Deserialize};
 
-use crate::types::YololNumber;
-
-use crate::types::Operator;
-use crate::types::OperatorError;
+use crate::types::{
+    ast::operators::{Operator, OperatorError},
+    YololNumber,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum LiteralValue

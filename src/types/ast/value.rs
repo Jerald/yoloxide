@@ -1,8 +1,11 @@
 use std::fmt;
 
-use super::Token;
-use super::YololNumber;
-use super::Expression;
+use crate::types::{
+    ast::expression::Expression,
+
+    YololNumber,
+    Token
+};
 
 mod literal_value;
 pub use literal_value::*;

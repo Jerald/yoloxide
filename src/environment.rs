@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use serde::{Serialize, Deserialize};
 
-use crate::types::LiteralValue;
+use crate::types::ast::value::LiteralValue;
 use crate::types::YololNumber;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,11 +1,12 @@
 use crate::types::Token;
-use crate::types::Statement as Stat;
-use crate::types::Expression as Expr;
-use crate::types::Operator as Op;
 
-use crate::types::Value;
-
-use crate::types::Line;
+use crate::types::ast::{
+    statement::Statement as Stat,
+    expression::Expression as Expr,
+    operators::Operator as Op,
+    value::Value,
+    line::Line
+};
 
 use crate::types::ParseErrorKind;
 use crate::types::ExprError;

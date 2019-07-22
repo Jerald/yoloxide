@@ -1,7 +1,7 @@
 use std::fmt;
 use std::error;
 
-use super::LiteralValue;
+use crate::types::ast::value::LiteralValue;
 
 #[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
 pub enum Operator
