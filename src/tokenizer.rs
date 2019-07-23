@@ -239,7 +239,19 @@ fn extend_yololnum(window: &mut VecWindow<char>) -> Option<Token>
     let left_string: String = left_digits.into_iter().collect();
     let right_string: String = right_digits.into_iter().collect();
 
-    let left_num: i64 = left_string.parse::<i64>().unwrap();
+    let left_num: i64 = left_string.parse::<i64>().unwrap_or_else(|error| {
+        use std::num::IntErrorKind;
+        match error.kind()
+        {
+            IntErrorKind::Empty => 0,
+            IntErrorKind::InvalidDigit => panic!("[Tokenizer] String to i64 parse error: somehow encountered a letter in the characters collected for a yolol number!"),
+            IntErrorKind::Overflow => std::i64::MAX,
+            IntErrorKind::Underflow => std::i64::MIN,
+            IntErrorKind::Zero => 0,
+
+            _ => panic!("[Tokenizer] Unknown String to i64 parse error when converting yolol number!")
+        }
+    });
 
     let right_num: i64 = if right_string.is_empty()
     {
@@ -253,7 +265,20 @@ fn extend_yololnum(window: &mut VecWindow<char>) -> Option<Token>
     {
         let right_string_len: u32 = right_string.len().try_into().unwrap();
         let shift: i64 = (10i64).pow(4 - right_string_len);
-        right_string[0..right_string.len()].parse::<i64>().unwrap() * shift
+        let num = right_string[0..right_string.len()].parse::<i64>().unwrap_or_else(|error| {
+            use std::num::IntErrorKind;
+            match error.kind()
+            {
+                IntErrorKind::Empty => 0,
+                IntErrorKind::InvalidDigit => panic!("[Tokenizer] String to i64 parse error: somehow encountered a letter in the characters collected for a yolol number!"),
+                IntErrorKind::Overflow => std::i64::MAX,
+                IntErrorKind::Underflow => std::i64::MIN,
+                IntErrorKind::Zero => 0,
+
+                _ => panic!("[Tokenizer] Unknown String to i64 parse error when converting yolol number!")
+            }
+        });
+        num * shift
     };
 
     let yolol_num = YololNumber::from_split(left_num, right_num);
