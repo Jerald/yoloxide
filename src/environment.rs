@@ -10,6 +10,7 @@ use crate::types::YololNumber;
 pub struct Environment
 {
     pub name: String,
+    pub version: &'static str,
     pub next_line: i64,
     pub error: String,
 
@@ -22,6 +23,7 @@ impl Environment
     pub fn new(name: &str) -> Environment
     {
         let name = String::from(name);
+        let version = env!("CARGO_PKG_VERSION");
 
         // We start at the first line on a chip
         let next_line = 1;
@@ -31,6 +33,7 @@ impl Environment
 
         Environment {
             name,
+            version,
             next_line,
             error: String::new(),
             local_context,
@@ -48,20 +51,21 @@ impl fmt::Display for Environment
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
-        let mut out_string = format!("Name: {}, next line: {}.\n", self.name, self.next_line);
+        let mut out_string = format!("Environment from Yoloxide version {}\n", self.version);
+        out_string += &format!("Name: {}, next line: {}.\n", self.name, self.next_line);
 
         out_string += "\n";
         out_string += "Local context:\n";
-        for (key, value) in self.local_context.iter()
+        for (key, value) in &self.local_context
         {
-            out_string += format!("Key: '{}', Value: '{}'\n", key, value).as_str();
+            out_string += &format!("Key: '{}', Value: '{}'\n", key, value);
         }
 
         out_string += "\n";
         out_string += "Global context:\n";
-        for (key, value) in self.global_context.iter()
+        for (key, value) in &self.global_context
         {
-            out_string += format!("Key: '{}', Value: '{}'\n", key, value).as_str();
+            out_string += &format!("Key: '{}', Value: '{}'\n", key, value);
         }
 
         write!(f, "{}", out_string)
