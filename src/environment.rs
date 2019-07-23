@@ -10,7 +10,7 @@ use crate::types::YololNumber;
 pub struct Environment
 {
     pub name: String,
-    pub version: &'static str,
+    pub version: String,
     pub next_line: i64,
     pub error: String,
 
@@ -23,7 +23,7 @@ impl Environment
     pub fn new(name: &str) -> Environment
     {
         let name = String::from(name);
-        let version = env!("CARGO_PKG_VERSION");
+        let version = String::from(env!("CARGO_PKG_VERSION"));
 
         // We start at the first line on a chip
         let next_line = 1;
