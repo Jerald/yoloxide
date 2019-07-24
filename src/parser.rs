@@ -5,7 +5,8 @@ use crate::types::ast::{
     expression::Expression as Expr,
     operators::Operator as Op,
     value::Value,
-    line::Line
+    line::Line,
+    program::Program
 };
 
 use crate::types::ParseErrorKind;
@@ -15,7 +16,7 @@ use crate::types::StatError;
 use crate::types::SlidingWindow;
 use crate::types::VecWindow;
 
-pub fn parse_program(window: &mut VecWindow<Token>) -> Result<Vec<Line>, StatError>
+pub fn parse_program(window: &mut VecWindow<Token>) -> Result<Program, StatError>
 {
     let mut line_vec: Vec<Line> = Vec::new();
     let mut current_line: Vec<Stat> = Vec::new();
@@ -55,7 +56,7 @@ pub fn parse_program(window: &mut VecWindow<Token>) -> Result<Vec<Line>, StatErr
         line_vec.push(Line(current_line.clone()));
     }
 
-    Ok(line_vec)
+    Ok(Program(line_vec))
 }
 
 pub fn parse_line(window: &mut VecWindow<Token>) -> Result<Line, StatError>

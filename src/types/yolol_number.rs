@@ -1,5 +1,6 @@
 use std::ops;
 use std::cmp;
+use std::str::FromStr;
 
 use serde::{Serialize, Deserialize, Serializer};
 
@@ -182,6 +183,82 @@ impl From<&YololNumber> for InnerType
     }
 }
 
+impl FromStr for YololNumber
+{
+    type Err = String;
+
+    fn from_str(string: &str) -> Result<Self, Self::Err>
+    {
+        let (left_string, right_string) = if string.contains(".")
+        {
+            let split: Vec<&str> = string.split(".").collect();
+            
+            if split.len() != 2
+            {
+                return Err(format!("[YololNumber::from_str] Input string had {} decimal points!", split.len()));
+            }
+
+            (split[0], split[1])
+        }
+        else
+        {
+            (string, "")
+        };
+
+        // Ensure the left string is all ascii digits
+        if left_string.chars().all(|c| c.is_ascii_digit()) == false
+        {
+            return Err(format!("[YololNumber::from_str] Chars to left of decimal point aren't all numbers!"))
+        }
+
+        // Ensure the right string is either empty or all ascii digits
+        if right_string.is_empty() == false &&
+            right_string.chars().all(|c| c.is_ascii_digit()) == false
+        {
+            return Err(format!("[YololNumber::from_str] Chars to right of decimal point aren't all numbers!"))
+        }
+
+        let parse_error_handler = |error: std::num::ParseIntError| {
+            use std::num::IntErrorKind;
+            match error.kind()
+            {
+                IntErrorKind::Empty |
+                IntErrorKind::Zero => 0,
+
+                IntErrorKind::Overflow => std::i64::MAX,
+                IntErrorKind::Underflow => std::i64::MIN,
+
+                IntErrorKind::InvalidDigit => panic!("[YololNumber::from_str] String to i64 parse error: somehow encountered a letter in the characters collected for a yolol number!"),
+                _ => panic!("[YololNumber::from_str] Unknown String to i64 parse error when converting yolol number!")
+            }
+        };
+
+        let left_num: i64 = left_string.parse::<i64>().unwrap_or_else(parse_error_handler);
+
+        let right_num: i64 = match right_string.len()
+        {
+            0 => 0,
+
+            len @ 1..=3 => {
+                let shift: i64 = (10i64).pow(4 - (len as u32));
+                let num = right_string[0..len].parse::<i64>().unwrap_or_else(parse_error_handler);
+                num * shift
+            },
+
+            _ => {
+                match right_string[0..4].parse::<i64>()
+                {
+                    Ok(num) => num,
+                    Err(_) => return Err(format!("[YololNumber::from_str] Failure to parse 4 decimals into number!"))
+                }
+            }
+        };
+
+        let yolol_num = YololNumber::from_split(left_num, right_num);
+        Ok(yolol_num)
+    }
+}
+
 impl std::fmt::Display for YololNumber
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result
@@ -224,6 +301,14 @@ impl std::fmt::Debug for YololNumber
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result
     {
         write!(f, "{}", self)
+    }
+}
+
+impl Serialize for YololNumber
+{
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    {
+        serializer.serialize_str(&self.to_string())
     }
 }
 
@@ -351,10 +436,3 @@ impl std::ops::Not for YololNumber
     }
 }
 
-impl Serialize for YololNumber
-{
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    {
-        serializer.serialize_str(&self.to_string())
-    }
-}

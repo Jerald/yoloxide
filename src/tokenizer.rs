@@ -4,8 +4,6 @@ use crate::types::SlidingWindow;
 use crate::types::VecWindow;
 use crate::types::YololNumber;
 
-use std::convert::TryInto;
-
 pub fn tokenize(input: String) -> Result<Vec<Token>, String>
 {
     let mut output_vec: Vec<Token> = Vec::new();
@@ -216,72 +214,22 @@ fn extend_string(window: &mut VecWindow<char>) -> Option<Token>
 
 fn extend_yololnum(window: &mut VecWindow<char>) -> Option<Token>
 {
-    let mut left_digits: Vec<char> = Vec::new();
-    let mut right_digits: Vec<char> = Vec::new();
-
-    let mut decimal_hit = false;
+    let mut digits: Vec<char> = Vec::new();
 
     while window.remaining_length() > 0
     {
         match window.get_value(0)
         {
-            Some('.') => decimal_hit = true,
-
-            Some(&num @ '0'..='9') if decimal_hit => right_digits.push(num),
-            Some(&num @ '0'..='9') => left_digits.push(num),
-
+            Some(&num @ '0'..='9') => digits.push(num),
             _ => break
         };
 
         window.move_view(1);
     }
 
-    let left_string: String = left_digits.into_iter().collect();
-    let right_string: String = right_digits.into_iter().collect();
+    let string: String = digits.into_iter().collect();
+    let yolol_num = string.parse::<YololNumber>().unwrap();
 
-    let left_num: i64 = left_string.parse::<i64>().unwrap_or_else(|error| {
-        use std::num::IntErrorKind;
-        match error.kind()
-        {
-            IntErrorKind::Empty => 0,
-            IntErrorKind::InvalidDigit => panic!("[Tokenizer] String to i64 parse error: somehow encountered a letter in the characters collected for a yolol number!"),
-            IntErrorKind::Overflow => std::i64::MAX,
-            IntErrorKind::Underflow => std::i64::MIN,
-            IntErrorKind::Zero => 0,
-
-            _ => panic!("[Tokenizer] Unknown String to i64 parse error when converting yolol number!")
-        }
-    });
-
-    let right_num: i64 = if right_string.is_empty()
-    {
-        0
-    }
-    else if right_string.len() >= 4
-    {
-        right_string[0..4].parse::<i64>().unwrap()
-    }
-    else
-    {
-        let right_string_len: u32 = right_string.len().try_into().unwrap();
-        let shift: i64 = (10i64).pow(4 - right_string_len);
-        let num = right_string[0..right_string.len()].parse::<i64>().unwrap_or_else(|error| {
-            use std::num::IntErrorKind;
-            match error.kind()
-            {
-                IntErrorKind::Empty => 0,
-                IntErrorKind::InvalidDigit => panic!("[Tokenizer] String to i64 parse error: somehow encountered a letter in the characters collected for a yolol number!"),
-                IntErrorKind::Overflow => std::i64::MAX,
-                IntErrorKind::Underflow => std::i64::MIN,
-                IntErrorKind::Zero => 0,
-
-                _ => panic!("[Tokenizer] Unknown String to i64 parse error when converting yolol number!")
-            }
-        });
-        num * shift
-    };
-
-    let yolol_num = YololNumber::from_split(left_num, right_num);
     Some(Token::YololNum(yolol_num))
 }
 

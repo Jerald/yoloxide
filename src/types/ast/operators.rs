@@ -98,6 +98,60 @@ impl fmt::Display for Operator
     }
 }
 
+// impl std::str::FromStr for Operator
+// {
+//     type Err = String;
+//     fn from_str(string: &str) -> Result<Self, Self::Err>
+//     {
+//         let op = match string
+//         {
+//              "=" => Operator::Assign,
+//              "+=" => Operator::AddAssign,
+//              "-=" => Operator::SubAssign,
+//              "*=" => Operator::MulAssign,
+//              "/=" => Operator::DivAssign,
+//              "%=" => Operator::ModAssign,
+
+//              "-" => Operator::Negate,
+//              "++" => Operator::PreInc,
+//              "++" => Operator::PostInc,
+//              "--" => Operator::PreDec,
+//              "--" => Operator::PostDec,
+//              "!" => Operator::Fact,
+
+//              "abs" => Operator::Abs,
+//              "sqrt" => Operator::Sqrt,
+//              "sin" => Operator::Sin,
+//              "cos" => Operator::Cos,
+//              "tan" => Operator::Tan,
+//              "arcsin" => Operator::Arcsin,
+//              "arccos" => Operator::Arccos,
+//              "arctan" => Operator::Arctan,
+//              "not" => Operator::Not,
+
+//              "<" => Operator::Lesser,
+//              ">" => Operator::Greater,
+//              "<=" => Operator::LesserEq,
+//              ">=" => Operator::GreaterEq,
+//              "==" => Operator::Equal,
+//              "!=" => Operator::NotEqual,
+//              "and" => Operator::And,
+//              "or" => Operator::Or,
+
+//              "+" => Operator::Add,
+//              "-" => Operator::Sub,
+//              "*" => Operator::Mul,
+//              "/" => Operator::Div,
+//              "%" => Operator::Mod,
+//              "^" => Operator::Pow,
+
+//              _ => return Err("Used FromStr on operator and didn't provide valid string!".to_owned())
+//         };
+
+//         Ok(op)
+//     }
+// }
+
 #[derive(Debug, Clone)]
 pub struct OperatorError
 {

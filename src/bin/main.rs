@@ -24,10 +24,10 @@ fn main()
     println!("{:?}", tokens);
 
     let mut token_window = VecWindow::new(&tokens, 0);
-    let lines = parser::parse_program(&mut token_window).expect("Parser failure!");
-    
+    let program = parser::parse_program(&mut token_window).expect("Parser failure!");
+
     println!("AST:");
-    for line in &lines
+    for line in &program.0
     {
         println!("{:?}", line);
     }
@@ -35,7 +35,7 @@ fn main()
     let mut test_env = Environment::new("Test Env");
 
     println!("Re-codified AST:");
-    for line in &lines
+    for line in &program.0
     {
         println!("{}", line);
         let eval_output = interpreter::evaluate_line(&mut test_env, &line);
