@@ -79,7 +79,7 @@ impl<'a, T> SlidingWindow<'a> for VecWindow<'a, T>
         {
             if distance_magnitude > self.remaining_length()
             {
-                panic!("Trying to move view outside it's bounds! Check with window.remaining_length() before moving!");
+                panic!("[SlidingWindow::move_view] Trying to move view outside it's bounds! Check with window.remaining_length() before moving!");
             }
 
             self.index += distance_magnitude;
@@ -88,7 +88,7 @@ impl<'a, T> SlidingWindow<'a> for VecWindow<'a, T>
         {
             if distance_magnitude > self.index
             {
-                panic!("Trying to move view outside it's bounds! Check with window.remaining_length() before moving!");
+                panic!("[SlidingWindow::move_view] Trying to move view outside it's bounds! Check with window.remaining_length() before moving!");
             }
             
             self.index -= distance_magnitude;

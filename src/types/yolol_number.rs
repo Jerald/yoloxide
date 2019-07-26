@@ -189,9 +189,9 @@ impl FromStr for YololNumber
 
     fn from_str(string: &str) -> Result<Self, Self::Err>
     {
-        let (left_string, right_string) = if string.contains(".")
+        let (left_string, right_string) = if string.contains('.')
         {
-            let split: Vec<&str> = string.split(".").collect();
+            let split: Vec<&str> = string.split('.').collect();
             
             if split.len() != 2
             {
@@ -206,16 +206,15 @@ impl FromStr for YololNumber
         };
 
         // Ensure the left string is all ascii digits
-        if left_string.chars().all(|c| c.is_ascii_digit()) == false
+        if !left_string.chars().all(|c| c.is_ascii_digit())
         {
-            return Err(format!("[YololNumber::from_str] Chars to left of decimal point aren't all numbers!"))
+            return Err("[YololNumber::from_str] Chars to left of decimal point aren't all numbers!".to_owned())
         }
 
         // Ensure the right string is either empty or all ascii digits
-        if right_string.is_empty() == false &&
-            right_string.chars().all(|c| c.is_ascii_digit()) == false
+        if !right_string.is_empty() && !right_string.chars().all(|c| c.is_ascii_digit())
         {
-            return Err(format!("[YololNumber::from_str] Chars to right of decimal point aren't all numbers!"))
+            return Err("[YololNumber::from_str] Chars to right of decimal point aren't all numbers!".to_owned())
         }
 
         let parse_error_handler = |error: std::num::ParseIntError| {
@@ -249,7 +248,7 @@ impl FromStr for YololNumber
                 match right_string[0..4].parse::<i64>()
                 {
                     Ok(num) => num,
-                    Err(_) => return Err(format!("[YololNumber::from_str] Failure to parse 4 decimals into number!"))
+                    Err(_) => return Err("[YololNumber::from_str] Failure to parse 4 decimals into number!".to_owned())
                 }
             }
         };
