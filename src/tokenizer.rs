@@ -220,6 +220,7 @@ fn extend_yololnum(window: &mut VecWindow<char>) -> Option<Token>
     {
         match window.get_value(0)
         {
+            Some(&decimal @ '.') => digits.push(decimal),
             Some(&num @ '0'..='9') => digits.push(num),
             _ => break
         };
