@@ -10,7 +10,7 @@ If you want to try our Yoloxide for yourself, clone the repo, be sure you have r
 ```
 cargo run <yolol_file>
 ```
-NOTE: As of August 2019 you need rust nightly.
+NOTE: As of August 2019 you need rust nightly to compile.
 
 Replacing `<yolol_file>` with one of the test files in the repo, or one of your own yolol scripts.
 
