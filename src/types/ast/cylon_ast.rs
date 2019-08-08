@@ -7,7 +7,8 @@ use super::{
     line::Line              as AstLine,
     statement::Statement    as Stat,
     expression::Expression  as Expr,
-    value::Value
+    value::Value,
+    operators::Operator     as Op,
 };
 
 const CYLON_AST_VERSION: &str = "0.3.0";
@@ -228,8 +229,20 @@ impl From<Expr> for Expression
             Expr::UnaryOp(op, operand) => {
                 let operand = (*operand).into();
 
+                // Specific fix for pre/post ops, due to their special form
+                let op_string = match op
+                {
+                    Op::PreInc  => "++a".to_owned(),
+                    Op::PostInc => "a++".to_owned(),
+
+                    Op::PreDec  => "--a".to_owned(),
+                    Op::PostDec => "a--".to_owned(),
+
+                    op => op.to_string()
+                };
+
                 Expression::UnaryOp {
-                    operator: op.to_string(),
+                    operator: op_string,
                     operand: Box::new(operand)
                 }
             },
