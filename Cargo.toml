@@ -1,7 +1,7 @@
 [package]
 name = "yoloxide"
 version = "0.3.2"
-authors = ["Oscar <osmithsi@sfu.ca>"]
+authors = ["Matrixmage <osmithsi@sfu.ca>"]
 edition = "2018"
 
 repository = "https://github.com/Jerald/yoloxide"
