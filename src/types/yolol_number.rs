@@ -8,7 +8,7 @@ const CONVERSION_CONST: i64 = 10000;
 
 type InnerType = i64;
 
-#[derive(Clone, Copy, Deserialize)]
+#[derive(Clone, Copy)]
 pub struct YololNumber(InnerType);
 
 impl YololNumber
@@ -308,6 +308,39 @@ impl Serialize for YololNumber
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error>
     {
         serializer.serialize_str(&self.to_string())
+    }
+}
+
+use serde::{Deserializer, de::Visitor};
+
+struct YololNumberVisitor;
+
+impl<'de> Visitor<'de> for YololNumberVisitor
+{
+    type Value = YololNumber;
+
+    fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result
+    {
+        write!(f, "a string containing only numerical characters, possibly with a decimal point")
+    }
+
+    fn visit_str<E>(self, input: &str) -> Result<Self::Value, E>
+    where E: serde::de::Error
+    {
+        match input.parse::<YololNumber>()
+        {
+            Ok(num) => Ok(num),
+            Err(error) => Err(E::custom(error))
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for YololNumber
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where D: Deserializer<'de>
+    {
+        deserializer.deserialize_str(YololNumberVisitor)
     }
 }
 

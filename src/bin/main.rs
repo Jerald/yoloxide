@@ -1,7 +1,9 @@
 use std::env;
 use std::fs;
 
-use yoloxide::environment::Environment;
+use yoloxide::environment::{
+    Environment, ContextMap
+};
 
 use yoloxide::tokenizer;
 use yoloxide::parser;
