@@ -2,7 +2,8 @@ use std::fmt;
 
 use std::convert::{TryFrom, TryInto};
 
-use crate::types::YololNumber;
+use yolol_number::YololNumber;
+
 use crate::types::ast::{
     operators::Operator,
     value::Value,

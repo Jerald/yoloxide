@@ -6,26 +6,8 @@ pub mod ast;
 mod sliding_window;
 pub use sliding_window::*;
 
-mod yolol_number;
-pub use yolol_number::*;
-
 mod token;
 pub use token::*;
-
-// mod operators;
-// pub use operators::*;
-
-// mod value;
-// pub use value::*;
-
-// mod expression;
-// pub use expression::*;
-
-// mod statement;
-// pub use statement::*;
-
-// mod line;
-// pub use line::*;
 
 #[derive(Debug, Clone)]
 pub struct EvaluationError

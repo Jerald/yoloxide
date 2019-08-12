@@ -3,8 +3,9 @@ use std::collections::HashMap;
 
 use serde::{Serialize, Deserialize};
 
+use yolol_number::YololNumber;
+
 use crate::types::ast::value::LiteralValue;
-use crate::types::YololNumber;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Environment
@@ -43,7 +44,12 @@ impl Environment
 
     pub fn set_next_line(&mut self, num: YololNumber)
     {
-        self.next_line = i64::from(num);
+        // Fucking num_traits... You suck.
+        use num_traits::cast::ToPrimitive;
+
+        // YololNumber::bound() will ensure it's in the
+        // i64 range so the unwrap won't fail.
+        self.next_line = num.bound().to_i64().unwrap();
     }
 }
 

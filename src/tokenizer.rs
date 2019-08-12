@@ -1,8 +1,9 @@
+use yolol_number::YololNumber;
+
 use crate::types::Token;
 
 use crate::types::SlidingWindow;
 use crate::types::VecWindow;
-use crate::types::YololNumber;
 
 pub fn tokenize(input: String) -> Result<Vec<Token>, String>
 {

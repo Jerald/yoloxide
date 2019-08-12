@@ -4,9 +4,10 @@ use std::cmp;
 
 use serde::{Serialize, Deserialize};
 
+use yolol_number::YololNumber;
+
 use crate::types::{
     ast::operators::{Operator, OperatorError},
-    YololNumber,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -20,12 +21,12 @@ impl LiteralValue
 {
     pub fn get_false() -> Self
     {
-        LiteralValue::NumberVal(YololNumber::from(0))
+        LiteralValue::NumberVal(YololNumber::falsy())
     }
 
     pub fn get_true() -> Self
     {
-        LiteralValue::NumberVal(YololNumber::from(1))
+        LiteralValue::NumberVal(YololNumber::truthy())
     }
 
     fn string_sub(self, other: Self) -> Self
@@ -155,7 +156,7 @@ impl LiteralValue
     {
         if let LiteralValue::NumberVal(num) = self
         {
-            let output = num.arcsin();
+            let output = num.asin();
             if output.is_negative()
             {
                 Err(OperatorError::new(Operator::Arcsin, Some(self), None,
@@ -177,7 +178,7 @@ impl LiteralValue
     {
         if let LiteralValue::NumberVal(num) = self
         {
-            let output = num.arccos();
+            let output = num.acos();
             if output.is_negative()
             {
                 Err(OperatorError::new(Operator::Arccos, Some(self), None,
@@ -199,7 +200,7 @@ impl LiteralValue
     {
         if let LiteralValue::NumberVal(num) = self
         {
-            let output = num.arctan();
+            let output = num.atan();
             if output.is_negative()
             {
                 Err(OperatorError::new(Operator::Arctan, Some(self), None,
@@ -236,8 +237,8 @@ impl From<bool> for LiteralValue
     {
         match input
         {
-            true => LiteralValue::NumberVal(YololNumber::from(1)),
-            false => LiteralValue::NumberVal(YololNumber::from(0))
+            true => LiteralValue::NumberVal(YololNumber::truthy()),
+            false => LiteralValue::NumberVal(YololNumber::falsy())
         }
     }
 }
@@ -254,7 +255,7 @@ impl From<i64> for LiteralValue
 {
     fn from(input: i64) -> LiteralValue
     {
-        LiteralValue::NumberVal(YololNumber::from(input))
+        LiteralValue::NumberVal(YololNumber::from_value(input))
     }
 }
 

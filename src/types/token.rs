@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::YololNumber;
+use yolol_number::YololNumber;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Token

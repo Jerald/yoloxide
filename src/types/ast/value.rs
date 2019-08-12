@@ -1,9 +1,9 @@
 use std::fmt;
 
+use yolol_number::YololNumber;
+
 use crate::types::{
     ast::expression::Expression,
-
-    YololNumber,
     Token
 };
 
