@@ -1,98 +1,73 @@
-use std::collections::HashMap;
+use std::convert::{TryFrom, TryInto};
 
-use serde::{Serialize, Deserialize};
+use yolol_number::YololNumber;
+
+use cylon_ast::{
+    CylonProg,
+    CylonLine,
+    CylonStat,
+    CylonExpr,
+
+    boxed_from_impl,
+    boxed_try_from_impl,
+};
 
 use super::{
     program::Program        as AstProgram,
     line::Line              as AstLine,
-    statement::Statement    as Stat,
-    expression::Expression  as Expr,
-    value::Value,
+    statement::Statement    as AstStat,
+    expression::Expression  as AstExpr,
+    value::Value            as AstValue,
     operators::Operator     as Op,
 };
 
-const CYLON_AST_VERSION: &str = "0.3.0";
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename = "root")]
-#[serde(rename_all = "lowercase")]
-pub struct Root
-{
-    pub version: String,
-    pub metadata: HashMap<String, String>,
-    pub program: Program
+boxed_from_impl! {
+    From<Box<AstExpr>> for Box<CylonExpr>
 }
 
-impl Root
-{
-    pub fn new(program: Program) -> Root
-    {
-        Root {
-            program,
-            ..Default::default()
-        }
-    }
+boxed_try_from_impl! {
+    TryFrom<Box<CylonStat>> for Box<AstStat>;
+    TryFrom<Box<CylonExpr>> for Box<AstExpr>
 }
 
-impl Default for Root
+impl From<AstProgram> for CylonProg
 {
-    fn default() -> Self
-    {
-        let mut metadata = HashMap::new();
-        metadata.insert("exporter".to_owned(), format!("yoloxide {}", env!("CARGO_PKG_VERSION")));
-
-        Root {
-            version: CYLON_AST_VERSION.to_owned(),
-            metadata,
-            program: Program {
-                lines: vec![]
-            }
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename = "program")]
-#[serde(rename_all = "lowercase")]
-#[serde(tag = "type")]
-pub struct Program
-{
-    pub lines: Vec<Line>
-}
-
-impl From<AstProgram> for Program
-{
-    fn from(program: AstProgram) -> Program
+    fn from(program: AstProgram) -> CylonProg
     {
         let lines = program.0.into_iter().map(Into::into).collect();
 
-        Program {
+        CylonProg {
             lines
         }
     }
 }
 
-impl From<&AstProgram> for Program
+impl TryFrom<CylonProg> for AstProgram
 {
-    fn from (program: &AstProgram) -> Program
+    type Error = String;
+    fn try_from(program: CylonProg) -> Result<Self, Self::Error>
     {
-        program.clone().into()
+        let mut ast_program = vec![];
+        for line in program.lines
+        {
+            ast_program.push(line.try_into()?);
+        }
+
+        Ok(AstProgram(ast_program))
     }
 }
 
-#[derive(Serialize, Deserialize)]
-#[serde(rename = "line")]
-#[serde(rename_all = "lowercase")]
-#[serde(tag = "type")]
-pub struct Line
-{
-    pub comment: String,
-    pub code: Vec<Statement>
-}
+// impl From<&AstProgram> for CylonProgram
+// {
+//     fn from (program: &AstProgram) -> CylonProgram
+//     {
+//         program.clone().into()
+//     }
+// }
 
-impl From<AstLine> for Line
+impl From<AstLine> for CylonLine
 {
-    fn from(line: AstLine) -> Line
+    fn from(line: AstLine) -> CylonLine
     {
         let mut output = Vec::new();
         let mut comment = None;
@@ -101,7 +76,7 @@ impl From<AstLine> for Line
         {
             match stat
             {
-                Stat::Comment(string) => {
+                AstStat::Comment(string) => {
                     comment = Some(string);
                 }
 
@@ -111,124 +86,168 @@ impl From<AstLine> for Line
             }
         }
 
-        Line {
+        CylonLine {
             comment: comment.unwrap_or_else(|| String::from("")),
             code: output
         }
     }
 }
 
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-#[serde(tag = "type")]
-pub enum Statement
+impl TryFrom<CylonLine> for AstLine
 {
-    #[serde(rename = "statement::goto")]
-    Goto { expression: Expression },
+    type Error = String;
+    fn try_from(line: CylonLine) -> Result<Self, Self::Error>
+    {
+        // let mut ast_line = vec![];
+        // for stat in line.code
+        // {
+        //     ast_line.push(stat.try_into()?);
+        // }
 
-    #[serde(rename = "statement::if")]
-    If { condition: Expression, body: Vec<Statement>, else_body: Vec<Statement> },
+        let mut ast_line: Vec<AstStat> = line.code.into_iter()
+            .map(|s| s.try_into())
+            .collect::<Result<_, Self::Error>>()?;
 
-    #[serde(rename = "statement::assignment")]
-    Assignment { identifier: String, operator: String, value: Expression },
+        if !line.comment.is_empty()
+        {
+            ast_line.push(AstStat::Comment(line.comment));
+        }
 
-    #[serde(rename = "statement::expression")]
-    Expression { expression: Expression }
+        Ok(AstLine(ast_line))
+    }
 }
 
-impl From<Stat> for Statement
+impl From<AstStat> for CylonStat
 {
-    fn from(stat: Stat) -> Statement
+    fn from(stat: AstStat) -> CylonStat
     {
         match stat
         {
-            Stat::Comment(_) => {
+            AstStat::Comment(_) => {
                 panic!("Converting a ast::Statement comment into a cylon_ast::Statement isn't supported currently!")
             },
 
-            Stat::If(cond, body, else_body) => {
-                let body: Vec<Statement> = body.into_iter().map(Into::into).collect();
+            AstStat::If(cond, body, else_body) => {
+                let body: Vec<CylonStat> = body.into_iter()
+                    .map(|s| s.into())
+                    .collect();
 
                 let else_body = match else_body {
-                    Some(vec) => vec.into_iter().map(Into::into).collect(),
+                    Some(vec) => vec.into_iter()
+                        .map(|s| s.into())
+                        .collect(),
+                        
                     None => vec![]
                 };
 
-                Statement::If {
+                CylonStat::If {
                     condition: (*cond).into(),
                     body,
                     else_body,
                 }
             },
 
-            Stat::Goto(expr) => {
-                Statement::Goto {
+            AstStat::Goto(expr) => {
+                CylonStat::Goto {
                     expression: (*expr).into()
                 }
             },
 
-            Stat::Assignment(ident, op, expr) => {
-                Statement::Assignment {
+            AstStat::Assignment(ident, op, expr) => {
+                CylonStat::Assignment {
                     identifier: ident.to_string(),
                     operator: op.to_string(),
                     value: (*expr).into()
                 }
             },
 
-            Stat::Expression(expr) => {
-                let expr = (*expr).into();
-
-                Statement::Expression {
-                    expression: expr
+            AstStat::Expression(expr) => {
+                CylonStat::Expression {
+                    expression: (*expr).into()
                 }
             }
         }
     }
 }
 
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-#[serde(tag = "type")]
-pub enum Expression
+impl TryFrom<CylonStat> for AstStat
 {
-    #[serde(rename = "expression::group")]
-    Group { group: Box<Expression> },
+    type Error = String;
+    fn try_from(stat: CylonStat) -> Result<Self, Self::Error>
+    {
+        match stat
+        {
+            CylonStat::Goto { expression } => {
+                let expr = Box::new(expression.try_into()?);
+                Ok(AstStat::Goto(expr))
+            },
+            CylonStat::If { condition, body, else_body } => {
+                let cond = Box::new(condition.try_into()?);
 
-    #[serde(rename = "expression::binary_op")]
-    BinaryOp { operator: String, left: Box<Expression>, right: Box<Expression> },
+                let ast_body: Vec<AstStat> = body.into_iter()
+                    .map(|s| s.try_into())
+                    .collect::<Result<_, Self::Error>>()?;
 
-    #[serde(rename = "expression::unary_op")]
-    UnaryOp { operator: String, operand: Box<Expression> },
+                let ast_else_body: Vec<AstStat> = else_body.into_iter()
+                    .map(|s| s.try_into())
+                    .collect::<Result<_, Self::Error>>()?;
 
-    #[serde(rename = "expression::number")]
-    Number { num: String },
+                if ast_else_body.is_empty()
+                {
+                    Ok(AstStat::If(cond, ast_body, None))
+                }
+                else
+                {
+                    Ok(AstStat::If(cond, ast_body, Some(ast_else_body)))
+                }
+            },
+            CylonStat::Assignment { identifier, operator, value } => {
+                let ident = if identifier.starts_with(':')
+                {
+                    AstValue::DataField(identifier)
+                }
+                else
+                {
+                    AstValue::LocalVar(identifier)
+                };
 
-    #[serde(rename = "expression::string")]
-    String { str: String },
+                let op = match operator.as_str()
+                {
+                    "=" => Op::Assign,
+                    "+=" => Op::AddAssign,
+                    "-=" => Op::SubAssign,
+                    "*=" => Op::MulAssign,
+                    "/=" => Op::DivAssign,
+                    "%=" => Op::ModAssign,
 
-    #[serde(rename = "expression::identifier")]
-    Identifier { name: String }
+                    bad_op => return Err(format!("[Statement::TryFrom<CylonStat>] Unable to convert to assignment op from string! Found '{}'", bad_op))
+                };
+
+                let value = Box::new(value.try_into()?);
+                Ok(AstStat::Assignment(ident, op, value))
+            },
+            CylonStat::Expression { expression } => {
+                let expr = Box::new(expression.try_into()?);
+                Ok(AstStat::Expression(expr))
+            }
+        }
+    }
 }
 
-impl From<Expr> for Expression
+impl From<AstExpr> for CylonExpr
 {
-    fn from(expr: Expr) -> Expression
+    fn from(expr: AstExpr) -> CylonExpr
     {
         match expr
         {
-            Expr::BinaryOp(op, left, right) => {
-                let left = (*left).into();
-                let right = (*right).into();
-
-                Expression::BinaryOp {
+            AstExpr::BinaryOp(op, left, right) => {
+                CylonExpr::BinaryOp {
                     operator: op.to_string(),
-                    left: Box::new(left),
-                    right: Box::new(right)
+                    left: left.into(),
+                    right: right.into(),
                 }
             },
-            Expr::UnaryOp(op, operand) => {
-                let operand = (*operand).into();
-
+            AstExpr::UnaryOp(op, operand) => {
                 // Specific fix for pre/post ops, due to their special form
                 let op_string = match op
                 {
@@ -241,47 +260,132 @@ impl From<Expr> for Expression
                     op => op.to_string()
                 };
 
-                Expression::UnaryOp {
+                CylonExpr::UnaryOp {
                     operator: op_string,
-                    operand: Box::new(operand)
+                    operand: operand.into()
                 }
             },
-            Expr::Value(value) => {
+            AstExpr::Value(value) => {
                 value.into()
             }
         }
     }
 }
 
-impl From<Value> for Expression
+impl TryFrom<CylonExpr> for AstExpr
 {
-    fn from(value: Value) -> Expression
+    type Error = String;
+    
+    fn try_from(expr: CylonExpr) -> Result<Self, Self::Error>
+    {
+        match expr
+        {
+            CylonExpr::Group { group } => {
+                let value = AstValue::Group(group.try_into()?);
+                Ok(AstExpr::Value(value))
+            },
+            CylonExpr::BinaryOp { operator, left, right } => {
+                let op = match operator.as_str()
+                {
+                    "<" => Op::Lesser,
+                    ">" => Op::Greater,
+                    "<=" => Op::LesserEq,
+                    ">=" => Op::GreaterEq,
+                    "==" => Op::Equal,
+                    "!=" => Op::NotEqual,
+                    "and" => Op::And,
+                    "or" => Op::Or,
+
+                    "+" => Op::Add,
+                    "-" => Op::Sub,
+                    "*" => Op::Mul,
+                    "/" => Op::Div,
+                    "%" => Op::Mod,
+                    "^" => Op::Pow,
+
+                    bad_op => return Err(format!("[AstExpr::TryFrom<CylonExpr>] Unable to convert to binary op from string! Found {}", bad_op))
+                };
+
+                Ok(AstExpr::BinaryOp(op, left.try_into()?, right.try_into()?))
+            },
+            CylonExpr::UnaryOp { operator, operand } => {
+                let op = match operator.as_str()
+                {
+                    "-" => Op::Negate,
+                    "++a" => Op::PreInc,
+                    "a++" => Op::PostInc,
+                    "--a" => Op::PreDec,
+                    "a--" => Op::PostDec,
+                    "!" => Op::Fact,
+
+                    "abs" => Op::Abs,
+                    "sqrt" => Op::Sqrt,
+                    "sin" => Op::Sin,
+                    "cos" => Op::Cos,
+                    "tan" => Op::Tan,
+                    "asin" => Op::Arcsin,
+                    "acos" => Op::Arccos,
+                    "atan" => Op::Arctan,
+                    "not" => Op::Not,
+
+                    bad_op => return Err(format!("[AstExpr::TryFrom<CylonExpr>] Unable to convert to unary op from string! Found {}", bad_op))
+                };
+
+                Ok(AstExpr::UnaryOp(op, operand.try_into()?))
+            },
+            CylonExpr::Number { num } => {
+                let yolol_num = num.parse::<YololNumber>()?;
+                let value = AstValue::NumberVal(yolol_num);
+
+                Ok(AstExpr::Value(value))
+            },
+            CylonExpr::String { str } => {
+                let value = AstValue::StringVal(str);
+                Ok(AstExpr::Value(value))
+            },
+            CylonExpr::Identifier { name } => {
+                let value = if name.starts_with(':')
+                {
+                    AstValue::DataField(name)
+                }
+                else
+                {
+                    AstValue::LocalVar(name)
+                };
+
+                Ok(AstExpr::Value(value))
+            }
+        }
+    }
+}
+
+impl From<AstValue> for CylonExpr
+{
+    fn from(value: AstValue) -> CylonExpr
     {
         match value
         {
-            Value::Group(expr) => {
-                let expr = (*expr).into();
-
-                Expression::Group {
-                    group: Box::new(expr)
+            AstValue::Group(expr) => {
+                CylonExpr::Group {
+                    group: expr.into()
                 }
             },
 
-            Value::LocalVar(ident) |
-            Value::DataField(ident) => {
-                Expression::Identifier {
+            AstValue::LocalVar(ident) |
+            AstValue::DataField(ident) => {
+                CylonExpr::Identifier {
                     name: ident
                 }
             },
 
-            Value::NumberVal(num) => {
-                Expression::Number {
+            AstValue::NumberVal(num) => {
+                CylonExpr::Number {
                     num: num.to_string()
                 }
             },
 
-            Value::StringVal(string) => {
-                Expression::String {
+            AstValue::StringVal(string) => {
+                CylonExpr::String {
                     str: string
                 }
             }

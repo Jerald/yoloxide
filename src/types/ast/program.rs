@@ -3,8 +3,6 @@ use std::convert::{TryFrom, TryInto};
 
 use super::line::Line;
 
-use super::cylon_ast::Program as CylonProgram;
-
 #[derive(Debug, Clone)]
 pub struct Program(pub Vec<Line>);
 
@@ -22,17 +20,17 @@ impl fmt::Display for Program
     }
 }
 
-impl TryFrom<CylonProgram> for Program
-{
-    type Error = String;
-    fn try_from(program: CylonProgram) -> Result<Self, Self::Error>
-    {
-        let mut ast_program = vec![];
-        for line in program.lines
-        {
-            ast_program.push(line.try_into()?);
-        }
+// impl TryFrom<CylonProgram> for Program
+// {
+//     type Error = String;
+//     fn try_from(program: CylonProgram) -> Result<Self, Self::Error>
+//     {
+//         let mut ast_program = vec![];
+//         for line in program.lines
+//         {
+//             ast_program.push(line.try_into()?);
+//         }
 
-        Ok(Program(ast_program))
-    }
-}
+//         Ok(Program(ast_program))
+//     }
+// }

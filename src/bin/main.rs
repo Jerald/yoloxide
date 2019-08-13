@@ -2,7 +2,7 @@ use std::env;
 use std::fs;
 
 use yoloxide::environment::{
-    Environment, ContextMap
+    Environment
 };
 
 use yoloxide::tokenizer;

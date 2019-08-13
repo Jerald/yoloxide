@@ -4,7 +4,7 @@ use yolol_number::YololNumber;
 
 use crate::types::{
     ast::expression::Expression,
-    Token
+    Token,
 };
 
 mod literal_value;
