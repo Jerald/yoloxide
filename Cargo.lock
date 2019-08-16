@@ -274,7 +274,7 @@ dependencies = [
 
 [[package]]
 name = "yoloxide"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "cylon_ast 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.98 (registry+https://github.com/rust-lang/crates.io-index)",
