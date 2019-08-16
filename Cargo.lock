@@ -263,7 +263,7 @@ dependencies = [
 
 [[package]]
 name = "yolol_number"
-version = "0.5.6"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "lazy_static 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -277,12 +277,11 @@ name = "yoloxide"
 version = "0.4.0"
 dependencies = [
  "cylon_ast 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "num-traits 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.98 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.40 (registry+https://github.com/rust-lang/crates.io-index)",
  "wasm-bindgen 0.2.48 (registry+https://github.com/rust-lang/crates.io-index)",
  "wasm-bindgen-test 0.2.48 (registry+https://github.com/rust-lang/crates.io-index)",
- "yolol_number 0.5.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "yolol_number 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [metadata]
@@ -319,4 +318,4 @@ dependencies = [
 "checksum wasm-bindgen-shared 0.2.48 (registry+https://github.com/rust-lang/crates.io-index)" = "d9c2d4d4756b2e46d3a5422e06277d02e4d3e1d62d138b76a4c681e925743623"
 "checksum wasm-bindgen-test 0.2.48 (registry+https://github.com/rust-lang/crates.io-index)" = "93241259c89570e107b139d0fb30b5e2c55c226afb813cd6fff04da705a39a3f"
 "checksum wasm-bindgen-test-macro 0.2.48 (registry+https://github.com/rust-lang/crates.io-index)" = "74e081d136ad38c1cd52e003fc9b9c784b82bbdbab2c917198c131bb4dae4858"
-"checksum yolol_number 0.5.6 (registry+https://github.com/rust-lang/crates.io-index)" = "611c1a4593a4d22c5ba8330ed2ffee918fcb7b338134e2137baee3ed5f7ad29f"
+"checksum yolol_number 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)" = "0c108375dba8595e6f4d113736d30dfaa7c8002cb57fb9ee78484e4e79640c85"

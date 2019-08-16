@@ -4,7 +4,7 @@ use std::cmp;
 
 use serde::{Serialize, Deserialize};
 
-use yolol_number::YololNumber;
+use yolol_number::prelude::*;
 
 use crate::types::{
     ast::operators::{Operator, OperatorError},

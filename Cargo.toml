@@ -19,11 +19,8 @@ serde_json = "1.0.40"
 
 cylon_ast = "0.3.0"
 
-yolol_number = "0.5.0"
+yolol_number = "0.6.0"
 
-# God damn num_traits. You WILL be gone soon.
-# You will rue the day you made me use your viral trait garbage.
-num-traits = "0.2.8"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
