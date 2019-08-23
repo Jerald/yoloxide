@@ -72,9 +72,9 @@ impl fmt::Display for Operator
             Operator::Sin => "sin",
             Operator::Cos => "cos",
             Operator::Tan => "tan",
-            Operator::Arcsin => "arcsin",
-            Operator::Arccos => "arccos",
-            Operator::Arctan => "arctan",
+            Operator::Arcsin => "asin",
+            Operator::Arccos => "acos",
+            Operator::Arctan => "atan",
             Operator::Not => "not",
 
             Operator::Lesser => "<",

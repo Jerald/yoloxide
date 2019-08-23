@@ -142,9 +142,9 @@ fn extend_alphanum(window: &mut VecWindow<char>) -> Option<Token>
         "sin" => Token::Sin,
         "cos" => Token::Cos,
         "tan" => Token::Tan,
-        "arcsin" => Token::Arcsin,
-        "arccos" => Token::Arccos,
-        "arctan" => Token::Arctan,
+        "asin" => Token::Arcsin,
+        "acos" => Token::Arccos,
+        "atan" => Token::Arctan,
         "not" => Token::Not,
 
         "or" => Token::Or,
