@@ -395,10 +395,14 @@ impl ops::Div<LiteralValue> for LiteralValue
     type Output = Result<LiteralValue, OperatorError>;
     fn div(self: Self, other: Self) -> Self::Output
     {
+        use yolol_number::prelude::*;
+        use crate::types::ast::operators::{Operator, OperatorError};
+
         match (self, other)
         {
             (LiteralValue::NumberVal(self_num), LiteralValue::NumberVal(other_num)) => {
-                Ok(LiteralValue::NumberVal(self_num / other_num))
+                Ok(LiteralValue::NumberVal(self_num.yolol_div(other_num)
+                    .ok_or_else(|| OperatorError::new(Operator::Div, None, None, "Did bad div thing! This error needs to be made better too!".to_owned()))?))
             },
 
             (left, right) => Err(OperatorError::new(Operator::Div, Some(left), Some(right),
