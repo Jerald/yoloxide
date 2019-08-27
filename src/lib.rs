@@ -1,9 +1,3 @@
-// Required for doing saturating_neg and saturating_abs for YololNumber's
-#![feature(saturating_neg)]
-
-// For checking int parse errors in the tokenizing stage
-#![feature(int_error_matching)]
-
 pub mod types;
 pub mod environment;
 
