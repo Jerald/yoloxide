@@ -1,30 +1,31 @@
 use std::convert::TryInto;
+use std::iter::FromIterator;
 
-pub trait SlidingWindow<'a>
+pub trait SlidingWindow
 {
     type Value;
 
-    // Gets the value at the index relative to the window view
+    /// Gets the value at the index relative to the window view
     fn get_value(&self, index: usize) -> Option<&Self::Value>;
-    // Gets a window view of the specified size
+    /// Gets a window view of the specified size
     fn get_window(&self, view_size: usize) -> Option<&[Self::Value]>;
-    // Returns how many elements there are remaining, relative to the window view
+    /// Returns how many elements there are remaining, relative to the window view
     fn remaining_length(&self) -> usize;
 
-    // Moves the window view by the specified distance, may be negative
-    // Returns the new index
+    /// Moves the window view by the specified distance, may be negative.
+    /// Returns the new index.
     fn move_view(&mut self, distance: isize) -> usize;
 }
 
-pub struct VecWindow<'a, T>
+pub struct VecWindow<T>
 {
-    vector: &'a Vec<T>,
+    vector: Vec<T>,
     index: usize,
 }
 
-impl<'a, T> VecWindow<'a, T>
+impl<T> VecWindow<T>
 {
-    pub fn new(vector: &'a Vec<T>, starting_index: usize) -> VecWindow<T>
+    pub fn new(vector: Vec<T>, starting_index: usize) -> VecWindow<T>
     {
         VecWindow {
             vector,
@@ -33,11 +34,11 @@ impl<'a, T> VecWindow<'a, T>
     }
 }
 
-impl<'a, T> SlidingWindow<'a> for VecWindow<'a, T>
+impl<T> SlidingWindow for VecWindow<T>
 {
     type Value = T;
 
-    // Gets the value at the index relative to the current window view
+    /// Gets the value at the index relative to the current window view
     fn get_value(&self, index: usize) -> Option<&Self::Value>
     {
         // Ensure we won't try to index outside the bounds of our vector
@@ -50,7 +51,7 @@ impl<'a, T> SlidingWindow<'a> for VecWindow<'a, T>
         Some(value)
     }
 
-    // Gets a window view of the specified size
+    /// Gets a window view of the specified size
     fn get_window(&self, view_size: usize) -> Option<&[Self::Value]>
     {
         let start = self.index;
@@ -66,8 +67,8 @@ impl<'a, T> SlidingWindow<'a> for VecWindow<'a, T>
         Some(&self.vector[start..end])
     }
 
-    // Moves the window view by the specified distance, may be negative
-    // Returns the new index
+    /// Moves the window view by the specified distance, may be negative.
+    /// Returns the new index.
     fn move_view(&mut self, distance: isize) -> usize
     {
         let distance_magnitude: usize = distance.abs().try_into().unwrap();
@@ -97,11 +98,29 @@ impl<'a, T> SlidingWindow<'a> for VecWindow<'a, T>
         self.index
     }
 
-    // Returns how many elements there are remaining, relative to the window view
+    /// Returns how many elements there are remaining, relative to the window view
     fn remaining_length(&self) -> usize
     {
         // The length minus the current view index gives the remaining elements
         // We _don't_ subtract an additional one since the index is the current value as well
         self.vector.len() - self.index
+    }
+}
+
+impl<T> From<Vec<T>> for VecWindow<T>
+{
+    fn from(input: Vec<T>) -> Self
+    {
+        VecWindow::new(input, 0)
+    }
+}
+
+// Since we can go from a Vec to a VecWindow,
+// why not just skip a step and go from the iterator directly?
+impl<T> FromIterator<T> for VecWindow<T>
+{
+    fn from_iter<I: IntoIterator<Item=T>>(iter: I) -> Self
+    {
+        VecWindow::from(iter.into_iter().collect::<Vec<T>>())
     }
 }

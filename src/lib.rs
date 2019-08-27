@@ -27,7 +27,7 @@ pub fn execute_line(env: &mut Environment, line: String)
         }
     };
 
-    let mut window = types::VecWindow::new(&tokens, 0);
+    let mut window = types::VecWindow::from(tokens);
     let line = match parser::parse_line(&mut window)
     {
         Ok(line) => line,

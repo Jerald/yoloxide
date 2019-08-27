@@ -25,7 +25,7 @@ fn main()
     println!("Tokens:");
     println!("{:?}", tokens);
 
-    let mut token_window = VecWindow::new(&tokens, 0);
+    let mut token_window = VecWindow::from(tokens);
     let program = parser::parse_program(&mut token_window).expect("Parser failure!");
 
     println!("AST:");

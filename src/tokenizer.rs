@@ -8,9 +8,7 @@ use crate::types::VecWindow;
 pub fn tokenize(input: String) -> Result<Vec<Token>, String>
 {
     let mut output_vec: Vec<Token> = Vec::new();
-    let input_chars: Vec<char> = input.chars().collect();
-
-    let mut window = VecWindow::new(&input_chars, 0);
+    let mut window: VecWindow<char> = input.chars().collect();
 
     while window.remaining_length() > 0
     {
