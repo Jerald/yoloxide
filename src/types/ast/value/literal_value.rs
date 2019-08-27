@@ -233,6 +233,8 @@ impl fmt::Display for LiteralValue
 
 impl From<bool> for LiteralValue
 {
+    // Ignore this clippy lint since this makes the conversion more expressive
+    #[allow(clippy::match_bool)]
     fn from(input: bool) -> LiteralValue
     {
         match input
@@ -395,9 +397,6 @@ impl ops::Div<LiteralValue> for LiteralValue
     type Output = Result<LiteralValue, OperatorError>;
     fn div(self: Self, other: Self) -> Self::Output
     {
-        use yolol_number::prelude::*;
-        use crate::types::ast::operators::{Operator, OperatorError};
-
         match (self, other)
         {
             (LiteralValue::NumberVal(self_num), LiteralValue::NumberVal(other_num)) => {
