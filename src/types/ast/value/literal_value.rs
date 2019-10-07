@@ -280,7 +280,7 @@ impl PartialEq for LiteralValue
             }
 
             (LiteralValue::NumberVal(self_num), LiteralValue::StringVal(other_string)) => {
-               &self_num.to_string() == other_string
+               false
             },
 
             (LiteralValue::StringVal(self_string), LiteralValue::StringVal(other_string)) => {
@@ -288,7 +288,7 @@ impl PartialEq for LiteralValue
             },
 
             (LiteralValue::StringVal(self_string), LiteralValue::NumberVal(other_num)) => {
-                self_string == &other_num.to_string()
+                false
             },
         }
     }
