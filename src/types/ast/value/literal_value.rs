@@ -279,17 +279,11 @@ impl PartialEq for LiteralValue
                 self_num == other_num
             }
 
-            (LiteralValue::NumberVal(self_num), LiteralValue::StringVal(other_string)) => {
-               &self_num.to_string() == other_string
-            },
-
             (LiteralValue::StringVal(self_string), LiteralValue::StringVal(other_string)) => {
                 self_string == other_string
             },
 
-            (LiteralValue::StringVal(self_string), LiteralValue::NumberVal(other_num)) => {
-                self_string == &other_num.to_string()
-            },
+            _ => false
         }
     }
 }
