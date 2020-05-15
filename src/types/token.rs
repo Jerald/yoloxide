@@ -1,106 +1,132 @@
-use std::fmt;
+use codespan::Span as Codespan;
+use codespan::{
+    FileId,
+    ByteIndex
+};
 
-use yolol_number::YololNumber;
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Token
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Span
 {
-    Comment(String),
-    Identifier(String),
-    StringToken(String),
-    YololNum(YololNumber),
-
-    Goto,
-
-    If,
-    Then,
-    Else,
-    End,
-
-    Abs,
-    Sqrt,
-    Sin,
-    Cos,
-    Tan,
-    Arcsin,
-    Arccos,
-    Arctan,
-    Not,
-
-    Or,
-    And,
-
-    Newline,
-
-    Equal,
-    Plus,
-    Minus,
-    Star,
-    Slash,
-    LParen,
-    RParen,
-    LAngleBrak,
-    RAngleBrak,
-    Exclam,
-    Caret,
-    Percent,
+    span: Codespan,
+    source: FileId
 }
 
-impl fmt::Display for Token
+impl Span
 {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+    pub fn new(source: FileId, span: impl Into<Codespan>) -> Self
     {
-        let write_value: String = match self
-        {
-            Token::Comment(string) => format!("// {}\n", string),
-            Token::Identifier(string) => string.clone(),
-            Token::StringToken(string) => format!("\"{}\"", string),
-            Token::YololNum(num) => format!("{}", num),
-
-            Token::Goto => "goto".to_owned(),
-
-            Token::If => "if".to_owned(),
-            Token::Then => "then".to_owned(),
-            Token::Else => "else".to_owned(),
-            Token::End => "end".to_owned(),
-
-            Token::Abs => "abs".to_owned(),
-            Token::Sqrt => "sqrt".to_owned(),
-            Token::Sin => "sin".to_owned(),
-            Token::Cos => "cos".to_owned(),
-            Token::Tan => "tan".to_owned(),
-            Token::Arcsin => "arcsin".to_owned(),
-            Token::Arccos => "arccos".to_owned(),
-            Token::Arctan => "arctan".to_owned(),
-            Token::Not => "not".to_owned(),
-
-            Token::Or => "or".to_owned(),
-            Token::And => "and".to_owned(),
-
-            Token::Newline => "\n".to_owned(),
-
-            Token::Equal => "=".to_owned(),
-            Token::Plus => "+".to_owned(),
-            Token::Minus => "-".to_owned(),
-            Token::Star => "*".to_owned(),
-            Token::Slash => "/".to_owned(),
-            Token::LParen => "(".to_owned(),
-            Token::RParen => ")".to_owned(),
-            Token::LAngleBrak => "<".to_owned(),
-            Token::RAngleBrak => ">".to_owned(),
-            Token::Exclam => "!".to_owned(),
-            Token::Caret => "^".to_owned(),
-            Token::Percent => "%".to_owned(),
-        };
-
-        write!(f, "{}", write_value)
+        Self {
+            span: span.into(),
+            source
+        }
     }
 }
 
+impl From<Span> for Codespan
+{
+    fn from(span: Span) -> Self
+    {
+        span.span
+    }
+}
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Token
+{
+    kind: TokenKind,
+    span: Span
+}
 
+impl Token
+{
+    fn new(kind: TokenKind, span: Span) -> Self
+    {
+        Token {
+            kind,
+            span
+        }
+    }
+}
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TokenKind
+{
+    Comment,
+    Identifier,
+    String,
+    Number,
 
+    Newline,
+    Space,
 
+    Equal,
+    EqualEqual,
 
+    Plus,
+    PlusPlus,
+    PlusEqual,
 
+    Minus,
+    MinusMinus,
+    MinusEqual,
+
+    Star,
+    StarEqual,
+    
+    Slash,
+    SlashEqual,
+    
+    Lesser,
+    LesserEqual,
+    
+    Greater,
+    GreaterEqual,
+    
+    Exclam,
+    ExclamEqual,
+    
+    Percent,
+    PercentEqual,
+    
+    LParen,
+    RParen,
+    Caret,
+}
+
+impl TokenKind
+{
+    pub fn to_token(self, span: Span) -> Token
+    {
+        Token::new(self, span)
+    }
+
+    pub fn spanned(self, span: Span) -> Token
+    {
+        Self::to_token(self, span)
+    }
+}
+
+impl TokenKind
+{
+    fn break_into_two(self) -> (TokenKind, TokenKind)
+    {
+        use TokenKind::*;
+        match self
+        {
+            EqualEqual => (Equal, Equal),
+
+            PlusPlus => (Plus, Plus),
+            PlusEqual => (Plus, Equal),
+
+            MinusMinus => (Minus, Minus),
+            MinusEqual => (Minus, Equal),
+
+            StarEqual => (Star, Equal),
+            SlashEqual => (Slash, Equal),
+            LesserEqual => (Lesser, Equal),
+            GreaterEqual => (Greater, Equal),
+            ExclamEqual => (Exclam, Equal),
+            PercentEqual => (Percent, Equal)
+        }
+    }
+}

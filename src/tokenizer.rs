@@ -1,237 +1,253 @@
-use yolol_number::YololNumber;
+use std::str::Chars;
+use std::iter::Peekable;
+use std::convert::TryInto;
 
-use crate::types::Token;
 
-use crate::types::SlidingWindow;
-use crate::types::VecWindow;
+use codespan::{
+    FileId,
+    Files,
+    ByteIndex
+};
 
-pub fn tokenize(input: String) -> Result<Vec<Token>, String>
+use crate::types::{Token, TokenKind, Span};
+
+trait CharExt
 {
-    let mut output_vec: Vec<Token> = Vec::new();
-    let mut window: VecWindow<char> = input.chars().collect();
+    fn is_ident(&self) -> bool;
+    
+    fn is_ident_start(&self) -> bool;
+}
 
-    while window.remaining_length() > 0
+impl CharExt for char
+{
+    fn is_ident(&self) -> bool
     {
-        let value_tuple = (window.get_value(0), window.get_value(1));
-        if cfg!(debug_assertions) { println!("[Tokenize] Matching slice: {:?}", value_tuple) }
+        self.is_ascii_alphabetic() || self == &'_'
+    }
+    
+    fn is_ident_start(&self) -> bool
+    {
+        self.is_ident() || self == &':'
+    }
+}
 
-        let (token, advance) = match value_tuple
+// TODO: Yolol only accepts ascii input specifically, so we can optimize by just using u8's as ascii chars.
+
+// TODO: Additional checks during lexing to ensure a larger token doesn't contain a newline is needed.
+
+pub struct Tokenizer<'a>
+{
+    file: FileId,
+    chars: Peekable<Chars<'a>>,
+    initial_len: usize
+}
+
+impl<'a> Tokenizer<'a>
+{
+    pub fn new(files: &'a Files<String>, file: FileId) -> Tokenizer<'a>
+    {
+        Tokenizer {
+            file,
+            chars: files.source(file).chars().peekable(),
+            initial_len: files.source(file).len()
+        }
+    }
+
+    /// Returns the current byte index through the source.
+    fn index(&self) -> ByteIndex
+    {
+        // This would normally be a problem, since Iterator::size_hint() is an approximation at best.
+        // But although Chars doesn't implement ExactSizedIterator, it can actually know its exact size, in bytes at least.
+        // The implementation specifically returns the upper bound as the length of the underlying &[u8] slice.
+        let (_, Some(len)) = self.chars.size_hint();
+        let idx: u32 = (self.initial_len - len).try_into().unwrap();
+
+        ByteIndex::from(idx)
+    }
+
+    /// Consumes characters as long as the check is passed.
+    fn eat_while<F>(&mut self, check: F)
+    where
+        F: Fn(&char) -> bool,
+    {
+        // We loop by peeking the next char, seeing if the check validates,
+        // and eating the peeked char if it does.
+
+        // This map_or handles the case where peek returns None by stopping the loop.
+        while self.chars.peek().map_or(false, check)
         {
-            // Comment. Everything from '//' to the end of the line
-            (Some('/'), Some('/'))          => (extend_comment(&mut window), 0),
+            self.chars.next();
+        }
+    }
 
-            // Identifier. Starts with an alpha, then can be alphanum
-            (Some('_'), _) |
-            (Some('a'..='z'), _) |
-            (Some('A'..='Z'), _)            => (extend_alphanum(&mut window), 0),
+    fn next_string(&mut self, start_idx: ByteIndex) -> Option<Token>
+    {
+        // Loop until we find the end of the string
+        self.eat_while(|&c| c != '"');
 
-            // DataField. Starts with a colon then is all alphanums
-            (Some(':'), Some('_')) |
-            (Some(':'), Some('0'..='9')) |
-            (Some(':'), Some('a'..='z')) |
-            (Some(':'), Some('A'..='Z'))    => (extend_datafield(&mut window), 0),
+        // Ensure we didn't goof and in fact are eating the last quote
+        debug_assert!(self.chars.peek() == Some(&'"'));
+        // Advance once to consume the last quote found
+        self.chars.next();
 
-            // String. Starts with a quote then extends all normal ascii chars until another quote
-            (Some('"'), Some(' '..='~'))    => (extend_string(&mut window), 0),
+        Some(Token {
+            kind: TokenKind::String,
+            span: self.span_from(start_idx)
+        })
+    }
 
-            // YololNumber. Starts with a number extends through all other numbers
-            // Will match on periods so it can represent the YololNumber decimals
-            (Some('0'..='9'), _)            => (extend_yololnum(&mut window), 0),
-            
-            // Newline. Matches on CRLF or LF
-            (Some('\r'), Some('\n'))        => (Some(Token::Newline), 2),
-            (Some('\n'), _)                 => (Some(Token::Newline), 1),
+    fn next_ident(&mut self, start_idx: ByteIndex) -> Option<Token>
+    {
+        // Loop as long as it's still a valid identifier
+        self.eat_while(char::is_ident);
 
-            // Special chars. Matches on each relevant special char
-            (Some('='), _)                  => (Some(Token::Equal), 1),
-            (Some('+'), _)                  => (Some(Token::Plus), 1),
-            (Some('-'), _)                  => (Some(Token::Minus), 1),
-            (Some('*'), _)                  => (Some(Token::Star), 1),
-            (Some('/'), _)                  => (Some(Token::Slash), 1),
-            (Some('('), _)                  => (Some(Token::LParen), 1),
-            (Some(')'), _)                  => (Some(Token::RParen), 1),
-            (Some('<'), _)                  => (Some(Token::LAngleBrak), 1),
-            (Some('>'), _)                  => (Some(Token::RAngleBrak), 1),
-            (Some('!'), _)                  => (Some(Token::Exclam), 1),
-            (Some('^'), _)                  => (Some(Token::Caret), 1),
-            (Some('%'), _)                  => (Some(Token::Percent), 1),
+        Some(Token {
+            kind: TokenKind::Identifier,
+            span: self.span_from(start_idx)
+        })
+    }
 
-            // Ignores spaces because they don't matter
-            (Some(' '), _) => (None, 1),
+    fn next_number(&mut self, start_idx: ByteIndex) -> Option<Token>
+    {
+        // Loop as long as there are still valid digits
+        self.eat_while(char::is_ascii_digit);
 
-            // Matches on anything else. Returns an error and prints the window that failed matching
-            c => return Err(format!("[Tokenize] Failure to match on {:?}", c))
-        };
-
-        if let Some(tok) = token
+        if let Some('.') = self.chars.peek()
         {
-            output_vec.push(tok);
+            // Skip the peeked decimal
+            self.chars.next();
+
+            // Loop again as long as there are valid digits after the decimal
+            self.eat_while(char::is_ascii_digit);
         }
 
-        window.move_view(advance);
+        Some(Token {
+            kind: TokenKind::Number,
+            span: self.span_from(start_idx)
+        })
     }
 
-    Ok(output_vec)
+    fn next_comment(&mut self, start_idx: ByteIndex) -> Option<Token>
+    {
+        // Loop as long as we've not yet hit the end of the line
+        self.eat_while(|&c| c != '\n');
+
+        Some(Token {
+            kind: TokenKind::Comment,
+            span: self.span_from(start_idx)
+        })
+    }
+
+    fn span_from(&self, start_idx: ByteIndex) -> Span
+    {
+        Span::new(self.file, start_idx..self.index())
+    }
 }
 
-fn extend_comment(window: &mut VecWindow<char>) -> Option<Token>
+impl Iterator for Tokenizer<'_>
 {
-    let mut char_vec: Vec<char> = Vec::new();
+    type Item = Token;
 
-    // Clears out the starting two slashes
-    window.move_view(2);
-
-    while window.remaining_length() > 0
+    fn next(&mut self) -> Option<Self::Item>
     {
-        match (window.get_value(0), window.get_value(1))
+        use TokenKind as Kind;
+
+        // Makes it much easier to write nested matches for rules requiring peeks
+        macro_rules! match_peek {
+            (
+                $(Some($ci:literal) => $ki:expr,)+
+                _ => $k:expr
+                $(,)*
+            ) => {
+                match self.chars.peek() {
+                    $(
+                        Some($ci) => {
+                            self.chars.next();
+                            $ki
+                        },
+                    )*
+                    _ => $k
+                }
+            };
+        }
+
+        let start_idx = self.index();
+
+        // Spans a token kind by the start index into an actual token
+        macro_rules! spanned {
+            ($k:expr) => {
+                $k.spanned(self.span_from(start_idx))
+            };
+        }
+
+        let token = match self.chars.next()?
         {
-            (Some('\r'), Some('\n')) |
-            (Some('\n'), _) => break,
+            '"' => self.next_string(start_idx)?,
 
-            (Some(&c), _) => char_vec.push(c),
+            c if c.is_ascii_digit() => self.next_number(start_idx)?,
 
-            _ => break
+            c if c.is_ident_start() => self.next_ident(start_idx)?,
+
+            '\n' => spanned!(Kind::Newline),
+            ' ' => spanned!(Kind::Space),
+
+            '=' => match_peek! {
+                Some('=') => spanned!(Kind::EqualEqual),
+                _ => spanned!(Kind::Equal)
+            },
+
+            '+' => match_peek! {
+                Some('+') => spanned!(Kind::PlusPlus),
+                Some('=') => spanned!(Kind::PlusEqual),
+                _ => spanned!(Kind::Plus),
+            },
+
+            '-' => match_peek! {
+                Some('-') => spanned!(Kind::MinusMinus),
+                Some('=') => spanned!(Kind::MinusEqual),
+                _ => spanned!(Kind::Minus)
+            },
+
+            '*' => match_peek! {
+                Some('=') => spanned!(Kind::StarEqual),
+                _ => spanned!(Kind::Star)
+            },
+
+            '/' => match_peek! {
+                Some('/') => {
+                    self.next_comment(start_idx)?
+                },
+                Some('=') => spanned!(Kind::SlashEqual),
+                _ => spanned!(Kind::Slash)
+            },
+
+            '<' => match_peek! {
+                Some('=') => spanned!(Kind::LesserEqual),
+                _ => spanned!(Kind::Lesser)
+            },
+
+            '>' => match_peek! {
+                Some('=') => spanned!(Kind::GreaterEqual),
+                _ => spanned!(Kind::Greater)
+            },
+
+            '!' => match_peek! {
+                Some('=') => spanned!(Kind::ExclamEqual),
+                _ => spanned!(Kind::Exclam)
+            },
+
+            '%' => match_peek! {
+                Some('=') => spanned!(Kind::PercentEqual),
+                _ => spanned!(Kind::Percent)
+            },
+
+            '(' => spanned!(Kind::LParen),
+            ')' => spanned!(Kind::RParen),
+            '^' => spanned!(Kind::Caret),
+
+            _ => todo!("Handle unknown token input!")
         };
-
-        window.move_view(1);
-    }
-
-    if let Some('\n') = window.get_value(0)
-    {
-        window.move_view(1);
-    }
-
-    let output: String = char_vec.into_iter().collect();
-    Some(Token::Comment(output))
-}
-
-fn extend_alphanum(window: &mut VecWindow<char>) -> Option<Token>
-{
-    let mut char_vec: Vec<char> = Vec::new();
-
-    while window.remaining_length() > 0
-    {
-        match window.get_value(0)
-        {
-            Some(&c @ '_') |
-            Some(&c @ 'a'..='z') |
-            Some(&c @ 'A'..='Z') |
-            Some(&c @ '0'..='9') => char_vec.push(c),
-
-            _ => break
-        };
-
-        window.move_view(1);
-    }
-
-    let output = char_vec.into_iter().collect::<String>().to_ascii_lowercase();
-
-    let token = match output.as_str()
-    {
-        "goto" => Token::Goto,
         
-        "if" => Token::If,
-        "then" => Token::Then,
-        "else" => Token::Else,
-        "end" => Token::End,
-
-        "abs" => Token::Abs,
-        "sqrt" => Token::Sqrt,
-        "sin" => Token::Sin,
-        "cos" => Token::Cos,
-        "tan" => Token::Tan,
-        "asin" => Token::Arcsin,
-        "acos" => Token::Arccos,
-        "atan" => Token::Arctan,
-        "not" => Token::Not,
-
-        "or" => Token::Or,
-        "and" => Token::And,
-        
-        s => Token::Identifier(String::from(s))
-    };
-
-    Some(token)
-}
-
-fn extend_datafield(window: &mut VecWindow<char>) -> Option<Token>
-{
-    let mut char_vec: Vec<char> = Vec::new();
-
-    char_vec.push(':');
-    window.move_view(1);
-
-    while window.remaining_length() > 0
-    {
-        match window.get_value(0)
-        {
-            Some(&c @ '_') |
-            Some(&c @ 'a'..='z') |
-            Some(&c @ 'A'..='Z') |
-            Some(&c @ '0'..='9') => char_vec.push(c),
-
-            _ => break
-        };
-
-        window.move_view(1);
+        Some(token)
     }
-
-    let output = char_vec.into_iter().collect::<String>().to_ascii_lowercase();
-    Some(Token::Identifier(output))
 }
-
-fn extend_string(window: &mut VecWindow<char>) -> Option<Token>
-{
-    let mut char_vec: Vec<char> = Vec::new();
-
-    if let Some('"') = window.get_value(0)
-    {
-        window.move_view(1);
-    }
-
-    while window.remaining_length() > 0
-    {
-        match window.get_value(0)
-        {
-            Some('"') => {
-                window.move_view(1);
-                break;
-            }
-
-            // The ascii values between space and tilde are all the regular symbolic text characters
-            Some(&c @ ' '..='~') => char_vec.push(c),
-
-            _ => break
-        };
-
-        window.move_view(1);
-    }
-
-    let output: String = char_vec.into_iter().collect();
-    Some(Token::StringToken(output))
-}
-
-fn extend_yololnum(window: &mut VecWindow<char>) -> Option<Token>
-{
-    let mut digits: Vec<char> = Vec::new();
-
-    while window.remaining_length() > 0
-    {
-        match window.get_value(0)
-        {
-            Some(&decimal @ '.') => digits.push(decimal),
-            Some(&num @ '0'..='9') => digits.push(num),
-            _ => break
-        };
-
-        window.move_view(1);
-    }
-
-    let string: String = digits.into_iter().collect();
-    let yolol_num = string.parse::<YololNumber>().unwrap();
-
-    Some(Token::YololNum(yolol_num))
-}
-
-
-
