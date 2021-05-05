@@ -1,6 +1,6 @@
 [package]
 name = "yoloxide"
-version = "0.4.3"
+version = "0.4.4"
 authors = ["Matrixmage <osmithsi@sfu.ca>"]
 edition = "2018"
 
@@ -17,9 +17,9 @@ crate-type = ["cdylib", "rlib"]
 serde = { version = "1.0.99", features = ["derive"] }
 serde_json = "1.0.40"
 
-cylon_ast = "0.3.2"
+cylon_ast = "0.4.0"
 
-yolol_number = "0.7.0"
+yolol_number = "0.9.0"
 
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -27,7 +27,3 @@ wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.2.48"
-
-# Release build optimized for small code size
-[profile.release]
-opt-level = "s"
